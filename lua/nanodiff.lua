@@ -65,12 +65,20 @@ local function build_tree(items)
   return compress_and_sort(root)
 end
 
-local function render_tree(lines, line_to_path, tree, depth)
+local function render_tree(lines, line_to_path, tree, depth, full_path)
+  local function path_append(root, child)
+    if root == "" then
+      return child
+    else
+      return root .. "/" .. child
+    end
+  end
+
   local prefix = string.rep(" ", depth*2)
   for _, item in ipairs(tree) do
     if item.is_dir then
       table.insert(lines, prefix .. item.path)
-      render_tree(lines, line_to_path, item.subs, depth + 1)
+      render_tree(lines, line_to_path, item.subs, depth + 1, path_append(full_path, item.path))
     else
       local display_str, target_path
       if item.orig_path then
@@ -81,7 +89,7 @@ local function render_tree(lines, line_to_path, tree, depth)
         target_path = item.path
       end
       table.insert(lines, display_str)
-      line_to_path[#lines] = target_path
+      line_to_path[#lines+1] = path_append(full_path, target_path)
     end
   end
 end
@@ -92,7 +100,7 @@ local function add_section(lines, line_to_path, header, items)
   local tree = build_tree(items, 0)
 
   table.insert(lines, "== " .. header .. " ==")
-  render_tree(lines, line_to_path, tree, 1)
+  render_tree(lines, line_to_path, tree, 1, "")
   table.insert(lines, "") -- Empty line separator
 end
 
@@ -107,10 +115,14 @@ local function open_status_tab(sections)
   vim.bo[left_buf].swapfile = false
 
   local lines = {}
-  vim.b[left_buf].line_to_path = {}
+  local line_to_path = {}
+  local line_to_section = {}
   for _, section in ipairs(sections) do
-    add_section(lines, vim.b[left_buf].line_to_path, section.title, section.contents)
+    line_to_section[#lines+1] = section
+    add_section(lines, line_to_path, section.title, section.contents)
   end
+  vim.b[left_buf].line_to_path = line_to_path
+  vim.b[left_buf].line_to_section = line_to_section
 
   if lines and #lines > 0 then
     vim.api.nvim_buf_set_lines(left_buf, 0, -1, false, lines)
