@@ -6,7 +6,7 @@ local async_sys = async.wrap(3, vim.system)
 local M = {}
 
 local function get_diff_status(git_root)
-  local current_commit =  async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root}).stdout
+  local current_commit =  vim.trim(async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root}).stdout)
 
   local output = async_sys({"git", "status", "--porcelain=v2"}, {cwd = git_root})
 
@@ -76,10 +76,11 @@ local function get_diff_status(git_root)
 end
 
 function M.status()
+  -- TODO maybe there's a way to skip vim.schedule from within async.run?
   async.run(function()
-    local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {text = true}).stdout)
+    local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}).stdout)
     local status = get_diff_status(git_root)
-    vim.schedule(function() difftab.open_diff_tab(status) end)
+    vim.schedule(function() difftab.open_diff_tab(status, git_root) end)
   end):raise_on_error()
 end
 
@@ -144,7 +145,7 @@ function M.revspec(revspec)
   async.run(function()
     local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {text = true}).stdout)
     local contents = get_diff_revspec(git_root, revspec)
-    vim.schedule(function() difftab.open_diff_tab(contents) end)
+    vim.schedule(function() difftab.open_diff_tab(contents, git_root) end)
   end):raise_on_error()
 end
 
