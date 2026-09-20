@@ -6,7 +6,7 @@ local M = {}
 local async = vim.async
 local async_sys = async.wrap(3, vim.system)
 
--- TODO wipe? TODO reuse buffer if existing?
+-- TODO bufhidden=wipe? TODO reuse buffer if existing?
 local function win_load_disk_file(winnr, path)
   local bufnr = vim.fn.bufadd(path)
   vim.fn.bufload(bufnr)
@@ -68,7 +68,7 @@ local function left_buf_handle_enter(git_root, bufnr)
   local section
   while section_line > 0 do
     section = vim.b[bufnr].line_to_section[section_line] 
-    if section ~= vim.NIL then
+    if section ~= vim.NIL and section ~= nil then
       break
     end
     section_line = section_line - 1
@@ -78,7 +78,7 @@ local function left_buf_handle_enter(git_root, bufnr)
   local path = vim.b[bufnr].line_to_path[line] 
   print("path: " .. vim.inspect(path))
 
-  if path ~= vim.NIL then
+  if path ~= vim.NIL and path ~= nil then
     win_load_buf(git_root, vim.b.diff1_win, path, section.left_sha)
     win_load_buf(git_root, vim.b.diff2_win, path, section.right_sha)
   end
