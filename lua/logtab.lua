@@ -51,8 +51,7 @@ function M.open_log_tab(log, git_root)
   local line_to_commit = {}
   for _, commit in ipairs(log) do
     line_to_commit[#lines+1] = commit
-    table.insert(lines, format_commit_summary(commit))
-    -- filetree.add_section(lines, line_to_path, section.title, section.contents)
+    filetree.add_section(lines, line_to_path, format_commit_summary(commit), commit.files)
   end
   vim.b[bottom_buf].line_to_path = line_to_path
   vim.b[bottom_buf].line_to_commit = line_to_commit

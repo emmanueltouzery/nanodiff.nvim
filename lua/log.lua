@@ -30,6 +30,16 @@ local function get_git_log(git_root)
   local commits = {}
   local current_commit = nil
 
+  local status_map = {
+    A = "added",
+    M = "modified",
+    D = "deleted",
+    R = "renamed",
+    C = "copied",
+    T = "type changed",
+    U = "unmerged"
+  }
+
   for line in obj.stdout:gmatch("[^\r\n]+") do
     -- Check if line starts with Record Separator (\x1e)
     if line:sub(1, 1) == "\x1e" then
@@ -47,15 +57,39 @@ local function get_git_log(git_root)
         ref_log = f[8],
         subject = f[9],
         stat = {},
-        raw = {}
+        files = {}
       }
       table.insert(commits, current_commit)
 
     elseif current_commit then
-      -- Line is part of diff output (--raw or --numstat)
+      -- Line starts with ':' -> Parse --raw metadata directly
       if line:sub(1, 1) == ":" then
-        table.insert(current_commit.raw, line)
+        -- Parse status code and rest of line after status
+        -- Example normal: :100644 100644 ... M\tlua/helpers.lua
+        -- Example rename: :100644 100644 ... R100\told.lua\tnew.lua
+        local status_char, paths_str = line:match("^:%d+%s+%d+%s+%S+%s+%S+%s+([A-Z])%d*\t(.+)$")
+
+        if status_char and paths_str then
+          local paths = vim.split(paths_str, "\t", { plain = true })
+          local status_word = status_map[status_char] or "unknown"
+
+          if status_char == "R" or status_char == "C" then
+            -- Renamed/Copied files contain both old and new paths separated by a tab
+            table.insert(current_commit.files, {
+              status = status_word,
+              path = paths[1],
+              new_path = paths[2]
+            })
+          else
+            table.insert(current_commit.files, {
+              status = status_word,
+              path = paths[1]
+            })
+          end
+        end
+
       else
+        -- Line is part of --numstat output
         local added, deleted, path = line:match("^([%d%-]+)\t([%d%-]+)\t(.+)$")
         if path then
           table.insert(current_commit.stat, {
@@ -67,7 +101,6 @@ local function get_git_log(git_root)
       end
     end
   end
-
   return commits
 end
 
