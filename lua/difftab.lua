@@ -1,4 +1,4 @@
-local tree = require('tree')
+local filetree = require('filetree')
 
 local M = {}
 
@@ -6,9 +6,9 @@ local M = {}
 local async = vim.async
 local async_sys = async.wrap(3, vim.system)
 
--- TODO bufhidden=wipe? TODO reuse buffer if existing?
+-- TODO bufhidden=wipe?
 local function win_load_disk_file(winnr, path)
-  local bufnr = vim.fn.bufadd(path)
+  local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
   vim.api.nvim_win_set_buf(winnr, bufnr)
@@ -100,7 +100,7 @@ function M.open_diff_tab(sections, git_root)
   local line_to_section = {}
   for _, section in ipairs(sections) do
     line_to_section[#lines+1] = section
-    tree.add_section(lines, line_to_path, section.title, section.contents)
+    filetree.add_section(lines, line_to_path, section.title, section.contents)
   end
   vim.b[left_buf].line_to_path = line_to_path
   vim.b[left_buf].line_to_section = line_to_section

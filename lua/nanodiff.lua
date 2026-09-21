@@ -1,9 +1,12 @@
 local async = vim.async
 local difftab = require('difftab')
+local log = require('log')
 
 local async_sys = async.wrap(3, vim.system)
 
-local M = {}
+local M = {
+  display_log = log.display_log,
+}
 
 local function get_diff_status(git_root)
   local current_commit =  vim.trim(async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root}).stdout)
@@ -148,6 +151,5 @@ function M.revspec(revspec)
     vim.schedule(function() difftab.open_diff_tab(contents, git_root) end)
   end):raise_on_error()
 end
-
 
 return M

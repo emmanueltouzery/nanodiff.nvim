@@ -1,5 +1,5 @@
 vim.opt.rtp:append(".")
-local tree = require("tree")
+local filetree = require("filetree")
 
 print("Running tests...")
 
@@ -23,7 +23,7 @@ assert_equals(
     }, {
       path = "d", h = 14
     },
-  } , tree._private.build_tree({{path = "a/b", f = 12}, {path = "a/c", g = 13}, {path = "d", h = 14}})
+  } , filetree._private.build_tree({{path = "a/b", f = 12}, {path = "a/c", g = 13}, {path = "d", h = 14}})
 )
 
 -- auto-merge empty subfolders
@@ -39,7 +39,7 @@ assert_equals(
     }, {
       path = "d", h = 14
     },
-  } , tree._private.build_tree({{path = "x/b/c", f = 12}, {path = "d", h = 14}})
+  } , filetree._private.build_tree({{path = "x/b/c", f = 12}, {path = "d", h = 14}})
 )
 
 
