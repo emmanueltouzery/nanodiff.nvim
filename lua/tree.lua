@@ -100,4 +100,8 @@ function M.add_section(lines, line_to_path, header, items)
   table.insert(lines, "") -- Empty line separator
 end
 
+M._private = {
+  build_tree = build_tree,
+}
+
 return M

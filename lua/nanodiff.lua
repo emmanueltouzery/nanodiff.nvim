@@ -149,8 +149,5 @@ function M.revspec(revspec)
   end):raise_on_error()
 end
 
-M._private = {
-  build_tree = build_tree,
-}
 
 return M
