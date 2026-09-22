@@ -4,14 +4,21 @@ local async_sys = async.wrap(3, vim.system)
 
 local M = {}
 
+local function win_set_diff(winnr)
+  vim.wo[winnr].diff = true
+  vim.wo[winnr].scrollbind = true
+  vim.wo[winnr].foldmethod = "diff"
+  vim.wo[winnr].foldlevel = 0 -- Collapses all unchanged folds by default
+  vim.wo[winnr].foldenable = true
+end
+
 -- TODO bufhidden=wipe?
 local function win_load_disk_file(winnr, path)
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
   vim.api.nvim_win_set_buf(winnr, bufnr)
-  vim.wo[winnr].diff = true
-  vim.wo[winnr].scrollbind = true
+  win_set_diff(winnr)
 end
 
 local function win_load_sha_file(winnr, git_root, path, sha)
@@ -20,9 +27,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
-
-    vim.wo[winnr].diff = true
-    vim.wo[winnr].scrollbind = true
+    win_set_diff(winnr)
   else
     async.run(function()
       local contents = async_sys({"git", "show", sha .. ":" .. path}, {cwd = git_root}).stdout
@@ -41,9 +46,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
         vim.bo[bufnr].modifiable = false
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
-
-        vim.wo[winnr].diff = true
-        vim.wo[winnr].scrollbind = true
+        win_set_diff(winnr)
       end)
     end):raise_on_error()
   end
