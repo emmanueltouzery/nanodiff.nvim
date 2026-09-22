@@ -5,42 +5,21 @@ local logtab = require('logtab')
 
 local M = {}
 
-local function get_git_log(git_root)
-  local cmd = {
-    "git", "-P",
-    "-c", "gc.auto=0",
-    "-c", "core.quotePath=false",
-    "log",
-    "-n256",
-    "--diff-merges=first-parent",
-    "--numstat", "--raw",
-    -- %x1e starts a new commit record, %x1f separates each field
-    "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-    "--", git_root
-  }
+local status_map = {
+  A = "added",
+  M = "modified",
+  D = "deleted",
+  R = "renamed",
+  C = "copied",
+  T = "type changed",
+  U = "unmerged"
+}
 
-  local obj = async_sys(cmd, { text = true })
-  if obj.code ~= 0 then 
-    vim.notify("Failed to invoke Git log: " .. obj.stderr, vim.log.levels.ERROR, {
-      title = "Nanodiff",
-    })
-    return {}
-  end
-
+local function parse_git_log_output(stdout)
   local commits = {}
   local current_commit = nil
 
-  local status_map = {
-    A = "added",
-    M = "modified",
-    D = "deleted",
-    R = "renamed",
-    C = "copied",
-    T = "type changed",
-    U = "unmerged"
-  }
-
-  for line in obj.stdout:gmatch("[^\r\n]+") do
+  for line in stdout:gmatch("[^\r\n]+") do
     -- Check if line starts with Record Separator (\x1e)
     if line:sub(1, 1) == "\x1e" then
       local header = line:sub(2) -- strip \x1e
@@ -104,12 +83,55 @@ local function get_git_log(git_root)
   return commits
 end
 
-function M.display_log()
+local function display_log_cmd(cmd_fn)
   async.run(function()
     local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}).stdout)
-    local git_log = get_git_log(git_root)
+    local cmd = cmd_fn(git_root)
+    local obj = async_sys(cmd, { text = true })
+    local git_log = {}
+    if obj.code ~= 0 then
+      vim.notify("Failed to invoke Git log: " .. obj.stderr, vim.log.levels.ERROR, {
+        title = "Nanodiff",
+      })
+    else
+      git_log = parse_git_log_output(obj.stdout)
+    end
+
     vim.schedule(function() logtab.open_log_tab(git_log, git_root) end)
   end):raise_on_error()
+end
+
+function M.display_log()
+  display_log_cmd(function(git_root)
+    return {
+      "git", "-P",
+      "-c", "gc.auto=0",
+      "-c", "core.quotePath=false",
+      "log",
+      "-n256",
+      "--diff-merges=first-parent",
+      "--numstat", "--raw",
+      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+      "--", git_root
+    }
+  end)
+end
+
+function M.display_stashes()
+  display_log_cmd(function(git_root)
+    return {
+      "git", "-P",
+      "-c", "gc.auto=0",
+      "-c", "core.quotePath=false",
+      "log",
+      "-n256",
+      "-g", -- --walk-reflogs: iterate through the stash stack
+      "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)
+      "--numstat", "--raw",
+      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+      "refs/stash"
+    }
+  end)
 end
 
 return M

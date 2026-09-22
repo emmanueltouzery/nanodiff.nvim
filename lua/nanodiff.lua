@@ -6,6 +6,7 @@ local async_sys = async.wrap(3, vim.system)
 
 local M = {
   log = log.display_log,
+  stashes = log.display_stashes,
 }
 
 local function get_diff_status(git_root)
