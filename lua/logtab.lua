@@ -1,4 +1,5 @@
 local filetree = require('filetree')
+local tabcommon = require('tabcommon')
 
 local M = {}
 
@@ -36,6 +37,27 @@ local function format_commit_summary(commit)
   )
 end
 
+local function bottom_buf_handle_enter(git_root, bufnr)
+  local line = vim.fn.line('.') + 1
+
+  local commit_line = line
+  local commit
+  while commit_line > 0 do
+    commit = vim.b[bufnr].line_to_commit[commit_line] 
+    if commit ~= vim.NIL and commit ~= nil then
+      break
+    end
+    commit_line = commit_line - 1
+  end
+
+  local path = vim.b[bufnr].line_to_path[line] 
+
+  if path ~= vim.NIL and path ~= nil then
+    tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, commit.hash .. "^")
+    tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, commit.hash)
+  end
+end
+
 function M.open_log_tab(log, git_root)
   vim.cmd("tabnew")
 
@@ -60,6 +82,39 @@ function M.open_log_tab(log, git_root)
 
   vim.api.nvim_buf_set_lines(bottom_buf, 0, -1, false, lines)
   vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
+
+  local bottom_win = vim.api.nvim_get_current_win()
+
+  -- Open a new window above the current one
+  local diff1_win = vim.api.nvim_open_win(0, true, {
+    split = 'above',
+    win = current_win,
+  })
+
+  -- Split that new window vertically to create the top-right window
+  local diff2_win = vim.api.nvim_open_win(0, true, {
+    split = 'right',
+    win = top_left_win,
+  })
+
+  vim.api.nvim_win_set_height(bottom_win, 15)
+
+  vim.b[bottom_buf].diff1_win = diff1_win
+  vim.b[bottom_buf].diff2_win = diff2_win
+
+  -- Configure bottom window options (including winfixbuf)
+  vim.wo[bottom_win].winfixbuf = true -- Lock window to this buffer
+  vim.wo[bottom_win].number = false
+  vim.wo[bottom_win].relativenumber = false
+  vim.wo[bottom_win].signcolumn = "no"
+  vim.wo[bottom_win].wrap = false
+
+  vim.keymap.set('n', '<CR>', function() bottom_buf_handle_enter(git_root, bottom_buf) end, {
+    noremap = true,
+    silent = true,
+    buffer = bottom_buf
+  })
+
 end
 
 return M

@@ -5,7 +5,7 @@ local log = require('log')
 local async_sys = async.wrap(3, vim.system)
 
 local M = {
-  display_log = log.display_log,
+  log = log.display_log,
 }
 
 local function get_diff_status(git_root)
