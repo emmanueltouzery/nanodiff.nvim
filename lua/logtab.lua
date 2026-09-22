@@ -16,7 +16,11 @@ local function format_commit_summary(commit)
   local files_str = string.format("M %d %s", file_count, file_count == 1 and "file" or "files")
 
   local refs_str = ""
-  if commit.ref_names and commit.ref_names ~= "" then
+  -- for git stash, prefer ref_log (%gd -> "stash@{0}") over ref_names (%D -> "refs/stash")
+  -- for git log, ref_log will be ""
+  if commit.ref_log and commit.ref_log ~= "" then
+    refs_str = string.format(" %s", commit.ref_log)
+  elseif commit.ref_names and commit.ref_names ~= "" then
     refs_str = string.format(" (%s)", commit.ref_names)
   end
 
