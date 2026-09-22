@@ -12,11 +12,39 @@ local function win_set_diff(winnr)
   vim.wo[winnr].foldenable = true
 end
 
+-- also see https://github.com/sindrets/diffview.nvim/issues/2
+local function protect_buffer_from_floats(buf)
+  local group = vim.api.nvim_create_augroup("NanodiffFloatProtect_" .. buf, { clear = true })
+
+  vim.api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    buffer = buf, -- Strictly scoped to your diff buffer handle!
+    callback = function()
+      -- Defer briefly so Neovim registers the newly created float in the window list
+      vim.schedule(function()
+        for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+          local config = vim.api.nvim_win_get_config(win)
+          
+          -- If a floating window exists, make sure diff is turned off for it
+          if config.relative and config.relative ~= "" then
+            if vim.wo[win].diff then
+              vim.wo[win].diff = false
+              vim.wo[win].scrollbind = false
+              vim.wo[win].cursorbind = false
+            end
+          end
+        end
+      end)
+    end,
+  })
+end
+
 -- TODO bufhidden=wipe?
 local function win_load_disk_file(winnr, path)
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
+  protect_buffer_from_floats(bufnr)
   vim.api.nvim_win_set_buf(winnr, bufnr)
   win_set_diff(winnr)
 end
