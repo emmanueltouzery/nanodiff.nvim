@@ -80,12 +80,17 @@ local function get_diff_status(git_root)
 end
 
 function M.status()
-  -- TODO maybe there's a way to skip vim.schedule from within async.run?
-  async.run(function()
+  local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
+    kind='progress', status='running', title='Git status', source='nanodiff', percent = nil
+  })
+  local status = async.run(function()
     local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}).stdout)
-    local status = get_diff_status(git_root)
-    vim.schedule(function() difftab.open_diff_tab(status, git_root) end)
-  end):raise_on_error()
+    return get_diff_status(git_root)
+  end):wait()
+  vim.api.nvim_echo({{'Done'}}, true, {
+    id = msg_id, kind='progress', status='success', source='nanodiff', title='Git status'
+  })
+  difftab.open_diff_tab(status, git_root)
 end
 
 local function get_diff_revspec(git_root, revspec)
@@ -146,11 +151,21 @@ local function get_diff_revspec(git_root, revspec)
 end
 
 function M.revspec(revspec)
-  async.run(function()
+  local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
+    kind='progress', status='running', title='Git revspec', source='nanodiff', percent = nil
+  })
+  local ok, contents = async.run(function()
     local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {text = true}).stdout)
-    local contents = get_diff_revspec(git_root, revspec)
-    vim.schedule(function() difftab.open_diff_tab(contents, git_root) end)
-  end):raise_on_error()
+    return get_diff_revspec(git_root, revspec)
+  end):pwait()
+  local status = 'failed'
+  if ok then
+    status = 'success'
+    difftab.open_diff_tab(contents, git_root)
+  end
+  vim.api.nvim_echo({{'Done'}}, true, {
+    id = msg_id, kind='progress', status=status, source='nanodiff', title='Git revspec'
+  })
 end
 
 return M
