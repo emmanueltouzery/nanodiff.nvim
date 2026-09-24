@@ -41,6 +41,11 @@ local function format_commit_summary(commit)
   )
 end
 
+local function load_entry(git_root, commit, path)
+  tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, commit.hash .. "^")
+  tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, commit.hash)
+end
+
 local function bottom_buf_handle_enter(git_root, bufnr)
   local line = vim.fn.line('.') + 1
 
@@ -57,8 +62,7 @@ local function bottom_buf_handle_enter(git_root, bufnr)
   local path = vim.b[bufnr].line_to_path[line] 
 
   if path ~= vim.NIL and path ~= nil then
-    tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, commit.hash .. "^")
-    tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, commit.hash)
+    load_entry(git_root, commit, path)
   end
 end
 
@@ -112,6 +116,15 @@ function M.open_log_tab(log, git_root)
   vim.wo[bottom_win].relativenumber = false
   vim.wo[bottom_win].signcolumn = "no"
   vim.wo[bottom_win].wrap = false
+
+  -- display the first entry immediately
+  if #log > 0 then
+    -- due to sorting in the treeview (including sorting folders first), the first path
+    -- in the section may not be the first in the treeview, so use line_to_path to
+    -- find the first displayed path
+    local lowest_idx_line_to_path = math.min(unpack(vim.tbl_keys(line_to_path)))
+    load_entry(git_root, log[1], line_to_path[lowest_idx_line_to_path])
+  end
 
   vim.keymap.set('n', '<CR>', function() bottom_buf_handle_enter(git_root, bottom_buf) end, {
     noremap = true,
