@@ -5,16 +5,6 @@ local logtab = require('logtab')
 
 local M = {}
 
-local status_map = {
-  A = "added",
-  M = "modified",
-  D = "deleted",
-  R = "renamed",
-  C = "copied",
-  T = "type changed",
-  U = "unmerged"
-}
-
 local function parse_git_log_output(stdout)
   local commits = {}
   local current_commit = nil
@@ -50,18 +40,17 @@ local function parse_git_log_output(stdout)
 
         if status_char and paths_str then
           local paths = vim.split(paths_str, "\t", { plain = true })
-          local status_word = status_map[status_char] or "unknown"
 
           if status_char == "R" or status_char == "C" then
             -- Renamed/Copied files contain both old and new paths separated by a tab
             table.insert(current_commit.files, {
-              status = status_word,
+              status = status_char,
               path = paths[1],
               new_path = paths[2]
             })
           else
             table.insert(current_commit.files, {
-              status = status_word,
+              status = status_char,
               path = paths[1]
             })
           end

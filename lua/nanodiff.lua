@@ -222,29 +222,21 @@ local function get_diff_revspec(git_root, revspec)
       local orig_path = nil
       local status
 
-      if code_char == "A" then
-        status = "added"
-      elseif code_char == "D" then
-        status = "deleted"
-      elseif code_char == "M" then
-        status = "modified"
-      elseif code_char == "R" then
-        status = "renamed"
+      if code_char == "R" then
+        -- renamed
         orig_path = parts[2]
         path = parts[3]
       elseif code_char == "C" then
-        status = "copied"
+        -- copied
         orig_path = parts[2]
         path = parts[3]
-      else
-        status = "unknown"
       end
 
       local numstat = diff_numstat[path]
       table.insert(results, {
         path = path,
         orig_path = orig_path,
-        status = status,
+        status = code_char,
         added = numstat.added or 0,
         deleted = numstat.deleted or 0,
       })

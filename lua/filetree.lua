@@ -1,4 +1,8 @@
 local M = {}
+local devicons = require'nvim-web-devicons'
+
+-- local folder_closed = "",
+local folder_open = " "
 
 -- merge empty subfolders together.. a single "a/b" level
 -- and sort files & folders in the tree
@@ -73,15 +77,17 @@ local function render_tree(lines, line_to_path, tree, depth, full_path)
   local prefix = string.rep(" ", depth*2)
   for _, item in ipairs(tree) do
     if item.is_dir then
-      table.insert(lines, prefix .. item.path)
+      -- 3 spaces for the prefix where files have the status [M] and so on
+      table.insert(lines, "   " .. prefix .. folder_open .. item.path)
       render_tree(lines, line_to_path, item.subs, depth + 1, path_append(full_path, item.path))
     else
       local display_str, target_path
+      local icon = devicons.get_icon(item.path, extension, { default = true })
       if item.orig_path then
-        display_str = string.format("%s[%s] %s -> %s +%d -%d", prefix, item.status, item.orig_path, item.path, item.added or 0, item.deleted or 0)
+        display_str = string.format("[%s]%s %s %s -> %s +%d -%d", item.status, prefix, icon, item.orig_path, item.path, item.added or 0, item.deleted or 0)
         target_path = item.path
       else
-        display_str = string.format("%s[%s] %s +%d -%d", prefix, item.status, item.path, item.added or 0, item.deleted or 0)
+        display_str = string.format("[%s]%s %s %s +%d -%d", item.status, prefix, icon, item.path, item.added or 0, item.deleted or 0)
         target_path = item.path
       end
       table.insert(lines, display_str)
