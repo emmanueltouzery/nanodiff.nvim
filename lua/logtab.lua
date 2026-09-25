@@ -4,11 +4,11 @@ local tabcommon = require('tabcommon')
 local M = {}
 
 local function format_commit_summary(commit)
-  local file_count = #commit.stat
+  local file_count = #commit.files
   local total_added = 0
   local total_deleted = 0
 
-  for _, file in ipairs(commit.stat) do
+  for _, file in ipairs(commit.files) do
     total_added = total_added + (tonumber(file.added) or 0)
     total_deleted = total_deleted + (tonumber(file.deleted) or 0)
   end

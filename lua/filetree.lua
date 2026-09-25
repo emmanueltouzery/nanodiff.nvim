@@ -78,10 +78,10 @@ local function render_tree(lines, line_to_path, tree, depth, full_path)
     else
       local display_str, target_path
       if item.orig_path then
-        display_str = string.format("%s[%s] %s -> %s", prefix, item.status, item.orig_path, item.path)
+        display_str = string.format("%s[%s] %s -> %s +%d -%d", prefix, item.status, item.orig_path, item.path, item.added or 0, item.deleted or 0)
         target_path = item.path
       else
-        display_str = string.format("%s[%s] %s", prefix, item.status, item.path)
+        display_str = string.format("%s[%s] %s +%d -%d", prefix, item.status, item.path, item.added or 0, item.deleted or 0)
         target_path = item.path
       end
       table.insert(lines, display_str)
@@ -97,7 +97,6 @@ function M.add_section(lines, line_to_path, header, items)
 
   table.insert(lines, "== " .. header .. " ==")
   render_tree(lines, line_to_path, tree, 1, "")
-  table.insert(lines, "") -- Empty line separator
 end
 
 M._private = {

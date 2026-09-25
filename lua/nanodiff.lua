@@ -9,8 +9,100 @@ local M = {
   stashes = log.display_stashes,
 }
 
+local fs_open = async.wrap(4, vim.uv.fs_open)  -- fs_open(path, flags, mode, cb)
+local fs_fstat = async.wrap(2, vim.uv.fs_fstat) -- fs_fstat(fd, cb)
+local fs_read = async.wrap(4, vim.uv.fs_read)  -- fs_read(fd, size, offset, cb)
+local fs_close = async.wrap(2, vim.uv.fs_close) -- fs_close(fd, cb)
+
+local function count_lines_async(filepath)
+  local err, fd = fs_open(filepath, "r", 438)
+  if err or not fd then return 0 end
+
+  -- 2. Stat (to get file size)
+  local err_stat, stat = fs_fstat(fd)
+  if err_stat or not stat or stat.size == 0 then
+    fs_close(fd)
+    return 0
+  end
+
+  -- 3. Read content
+  local err_read, content = fs_read(fd, stat.size, 0)
+  fs_close(fd)
+
+  if err_read or not content or #content == 0 then return 0 end
+
+  -- 4. Count lines
+  local _, count = content:gsub("\n", "")
+  if content:sub(-1) ~= "\n" then
+    count = count + 1
+  end
+
+  return count
+end
+
+local function get_new_path(path)
+  if path:find(" => ") then
+    -- Handle grouped renames like "dir/{old => new}/file.lua"
+    local prefix, new_part, suffix = path:match("^(.-)%{%S*%s*=>%s*(%S*)%}(.*)$")
+    if prefix then
+      return (prefix .. new_part .. suffix):gsub("//+", "/")
+    end
+    -- Handle simple renames like "old.lua => new.lua"
+    return path:match("=>%s*(.+)$")
+  end
+  return path
+end
+
+local function parse_diff_numstat(stdout)
+  local stats = {}
+
+  for line in stdout:gmatch("[^\r\n]+") do
+    local added, deleted, path = line:match("^([%d%-]+)%s+([%d%-]+)%s+(.+)$")
+    if path then
+      local real_path = get_new_path(path)
+      stats[real_path] = {
+        added = tonumber(added) or 0,
+        deleted = tonumber(deleted) or 0,
+      }
+    end
+  end
+
+  return stats
+end
+
+local function count_file_lines(filepath)
+  local file = io.open(filepath, "rb")
+  if not file then return 0 end
+
+  local content = file:read("*a")
+  file:close()
+
+  if #content == 0 then return 0 end
+
+  -- content:gsub("\n", "") returns (modified_string, count_of_replacements)
+  local _, count = content:gsub("\n", "")
+
+  -- If the file has content but doesn't end with a trailing newline, add 1
+  if content:sub(-1) ~= "\n" then
+    count = count + 1
+  end
+
+  return count
+end
+
 local function get_diff_status(git_root)
-  local current_commit =  vim.trim(async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root}).stdout)
+  local commit_output = async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root})
+  if commit_output.code ~= 0 then
+    error("git rev-parse error: " .. commit_output.stderr)
+  end
+  local current_commit =  vim.trim(commit_output.stdout)
+
+  -- need to fetch the per-file diffstats separately
+  local diff_numstat_output = async_sys({"git", "diff", "HEAD", "--numstat"})
+  if diff_numstat_output.code ~= 0 then
+    error("git diff error: " .. diff_numstat_output.stderr)
+  end
+  local diff_numstat = parse_diff_numstat(diff_numstat_output.stdout)
 
   local output = async_sys({"git", "status", "--porcelain=v2"}, {cwd = git_root})
 
@@ -28,11 +120,12 @@ local function get_diff_status(git_root)
         local x = xy:sub(1, 1) -- Staged
         local y = xy:sub(2, 2) -- Unstaged
 
+        local stats = diff_numstat[path]
         if x ~= "." then
-          table.insert(staged, { path = path, status = x })
+          table.insert(staged, { path = path, status = x, added = stats.added, deleted = stats.deleted })
         end
         if y ~= "." then
-          table.insert(unstaged, { path = path, status = y })
+          table.insert(unstaged, { path = path, status = y, added = stats.added, deleted = stats.deleted })
         end
       else
         print("couldn't match line: " .. line)
@@ -48,18 +141,21 @@ local function get_diff_status(git_root)
         -- Paths are tab-separated: "new_path\told_path"
         local path, orig_path = paths:match("^([^\t]+)\t(.+)$")
 
+        local stats = diff_numstat[path]
         if x == "R" or x == "C" then
           table.insert(staged, {
             path = path,
             orig_path = orig_path,
             status = x,
+            added = stats.added, deleted = stats.deleted
           })
         elseif x ~= "." then
-          table.insert(staged, { path = path, status = x })
+          table.insert(staged, { path = path, status = x, added = stats.added, deleted = stats.deleted })
+
         end
 
         if y ~= "." then
-          table.insert(unstaged, { path = path, status = y })
+          table.insert(unstaged, { path = path, status = y, added = stats.added, deleted = stats.deleted })
         end
       end
 
@@ -67,7 +163,7 @@ local function get_diff_status(git_root)
       -- Untracked files: "? <path>"
       local path = line:match("^%?%s+(.+)$")
       if path then
-        table.insert(untracked, { path = path, status = "?" })
+        table.insert(untracked, { path = path, status = "?", added = count_lines_async(path), deleted = 0 })
       end
     end
   end
@@ -97,7 +193,18 @@ local function get_diff_revspec(git_root, revspec)
   local commits_stdout = async_sys({"git", "rev-parse", "--revs-only", "--no-flags", revspec}, {text = true, cwd = git_root}).stdout
   local right_sha, left_sha = unpack(vim.split(commits_stdout:gsub("%^", ""), "%s+", { trimempty = true }))
 
-  local output = vim.trim(async_sys({"git", "diff", "--name-status", "-M", revspec}, {text = true, cwd = git_root}).stdout)
+  -- need to fetch the per-file diffstats separately
+  local diff_numstat_output = async_sys({"git", "diff", "--numstat", revspec})
+  if diff_numstat_output.code ~= 0 then
+    error("git diff --numstat error: " .. diff_numstat_output.stderr)
+  end
+  local diff_numstat = parse_diff_numstat(diff_numstat_output.stdout)
+
+  local output_obj = async_sys({"git", "diff", "--name-status", "-M", revspec}, {text = true, cwd = git_root})
+  if output_obj.code ~= 0 then
+    error("git diff error: " .. output_obj.stderr)
+  end
+  local output = vim.trim(output_obj.stdout)
 
   local results = {}
 
@@ -133,10 +240,13 @@ local function get_diff_revspec(git_root, revspec)
         status = "unknown"
       end
 
+      local numstat = diff_numstat[path]
       table.insert(results, {
         path = path,
         orig_path = orig_path,
         status = status,
+        added = numstat.added or 0,
+        deleted = numstat.deleted or 0,
       })
     end
   end

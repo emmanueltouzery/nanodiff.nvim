@@ -68,14 +68,16 @@ local function parse_git_log_output(stdout)
         end
 
       else
-        -- Line is part of --numstat output
-        local added, deleted, path = line:match("^([%d%-]+)\t([%d%-]+)\t(.+)$")
+        -- Line is part of --numstat output (per-file stats)
+        local added, deleted, path = line:match("^([%d%-]+)%s+([%d%-]+)%s+(.+)$")
         if path then
-          table.insert(current_commit.stat, {
-            added = added,
-            deleted = deleted,
-            path = path
-          })
+          for _, file in ipairs(current_commit.files) do
+            if file.path == path or file.new_path == path then
+              file.added = tonumber(added) or 0
+              file.deleted = tonumber(deleted) or 0
+              break
+            end
+          end
         end
       end
     end
@@ -93,7 +95,7 @@ local function display_log_cmd(cmd_fn)
     local obj = async_sys(cmd, { text = true })
     local git_log = {}
     if obj.code ~= 0 then
-      error("Git error")
+      error("Git error: " .. obj.stderr)
     else
       return parse_git_log_output(obj.stdout)
     end
