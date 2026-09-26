@@ -54,11 +54,24 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   end
 end
 
+local function win_load_null_file(winnr)
+  local bufname = "git://null"
+  local bufnr = vim.fn.bufnr(bufname)
+  if bufnr == -1 then
+    bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
+    vim.api.nvim_buf_set_name(bufnr, bufname)
+  end
+  vim.api.nvim_win_set_buf(winnr, bufnr)
+  win_set_diff(winnr)
+end
+
 function M.win_load_buf(git_root, winnr, path, sha)
   vim.wo[winnr].diff = false
   vim.wo[winnr].scrollbind = false
   if sha == "disk" then
     win_load_disk_file(winnr, path)
+  elseif sha == nil then
+    win_load_null_file(winnr)
   else
     win_load_sha_file(winnr, git_root, path, sha)
   end
