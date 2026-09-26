@@ -88,7 +88,7 @@ function M.open_log_tab(log, git_root)
 
   local bottom_win = vim.api.nvim_get_current_win()
 
-  vim.api.nvim_buf_set_lines(bottom_buf, 0, -1, false, lines)
+  filetree.render_lines(bottom_buf, lines)
   vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
 
   -- Lock buffer against accidental modifications

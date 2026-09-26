@@ -3,6 +3,46 @@ local devicons = require'nvim-web-devicons'
 
 -- local folder_closed = "",
 local folder_open = " "
+local ns_hl_id = vim.api.nvim_create_namespace("nanodiff_ui_highlights")
+
+function M.render_lines(bufnr, lines)
+  local lines_text = {}
+  local highlights = {}
+
+  for line_idx, line in ipairs(lines) do
+    local line_0idx = line_idx - 1 -- Convert 1-based Lua index to 0-based Neovim index
+
+    if type(line) == "string" then
+      table.insert(lines_text, line)
+    else
+      local line_text = ""
+      for _, chunk in ipairs(line) do
+        local text = chunk[1]
+        local hl_group = chunk[2]
+
+        local start_byte = #line_text
+        line_text = line_text .. text
+        local end_byte = #line_text
+
+        if hl_group then
+          table.insert(highlights, {
+            line = line_0idx,
+            hl = hl_group,
+            s = start_byte,
+            e = end_byte,
+          })
+        end
+      end
+      table.insert(lines_text, line_text)
+    end
+  end
+
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines_text)
+
+  for _, item in ipairs(highlights) do
+    vim.api.nvim_buf_add_highlight(bufnr, ns_hl_id, item.hl, item.line, item.s, item.e)
+  end
+end
 
 -- merge empty subfolders together.. a single "a/b" level
 -- and sort files & folders in the tree
@@ -66,6 +106,7 @@ local function build_tree(items)
 end
 
 local function render_tree(lines, line_to_path, tree, depth, full_path)
+  vim.api.nvim_buf_clear_namespace(0, ns_hl_id, 0, -1)
   local function path_append(root, child)
     if root == "" then
       return child
@@ -78,20 +119,39 @@ local function render_tree(lines, line_to_path, tree, depth, full_path)
   for _, item in ipairs(tree) do
     if item.is_dir then
       -- 3 spaces for the prefix where files have the status [M] and so on
-      table.insert(lines, "   " .. prefix .. folder_open .. item.path)
+      table.insert(lines, {
+        {"   " .. prefix, nil},
+        {folder_open, "DiffviewFolderSign"},
+        {item.path, "DiffviewFolderName"},
+      })
       render_tree(lines, line_to_path, item.subs, depth + 1, path_append(full_path, item.path))
     else
-      local display_str, target_path
-      local icon = devicons.get_icon(item.path, extension, { default = true })
+      local line_info, target_path
+      local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
       if item.orig_path then
-        display_str = string.format("[%s]%s %s %s -> %s +%d -%d", item.status, prefix, icon, item.orig_path, item.path, item.added or 0, item.deleted or 0)
+        line_info = {
+          {string.format("[%s]%s ", item.status, prefix), nil},
+          {icon .. " ", icon_hl_group},
+          {item.orig_path, nil},
+          {" -> ", nil},
+          {item.path, nil},
+          {" +" .. (item.added or 0), "DiffviewFilePanelInsertions"},
+          {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions"},
+        }
         target_path = item.path
       else
-        display_str = string.format("[%s]%s %s %s +%d -%d", item.status, prefix, icon, item.path, item.added or 0, item.deleted or 0)
+        line_info = {
+          {string.format("[%s]%s ", item.status, prefix), nil},
+          {icon .. " ", icon_hl_group},
+          {item.path .. " ", nil},
+          {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"},
+          {" ", nil},
+          {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"},
+        }
         target_path = item.path
       end
       line_to_path[#lines+1] = path_append(full_path, target_path)
-      table.insert(lines, display_str)
+      table.insert(lines, line_info)
     end
   end
 end

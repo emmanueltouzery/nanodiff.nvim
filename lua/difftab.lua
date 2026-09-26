@@ -48,9 +48,7 @@ function M.open_diff_tab(sections, git_root)
   vim.b[left_buf].line_to_path = line_to_path
   vim.b[left_buf].line_to_section = line_to_section
 
-  if lines and #lines > 0 then
-    vim.api.nvim_buf_set_lines(left_buf, 0, -1, false, lines)
-  end
+  filetree.render_lines(left_buf, lines)
 
   -- Lock buffer against accidental modifications
   vim.bo[left_buf].modifiable = false
