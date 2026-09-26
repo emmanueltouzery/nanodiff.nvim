@@ -91,6 +91,10 @@ function M.open_log_tab(log, git_root)
   vim.api.nvim_buf_set_lines(bottom_buf, 0, -1, false, lines)
   vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
 
+  -- Lock buffer against accidental modifications
+  vim.bo[bottom_buf].modifiable = false
+  vim.bo[bottom_buf].readonly = true
+
   local bottom_win = vim.api.nvim_get_current_win()
 
   -- Open a new window above the current one
