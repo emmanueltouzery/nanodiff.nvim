@@ -9,7 +9,7 @@ local function load_entry(section, path)
 end
 
 local function left_buf_handle_enter(git_root, bufnr)
-  local line = vim.fn.line('.') + 1
+  local line = vim.fn.line('.')
 
   local section_line = line
   local section

@@ -47,7 +47,7 @@ local function load_entry(git_root, commit, path)
 end
 
 local function bottom_buf_handle_enter(git_root, bufnr)
-  local line = vim.fn.line('.') + 1
+  local line = vim.fn.line('.')
 
   local commit_line = line
   local commit
@@ -59,7 +59,7 @@ local function bottom_buf_handle_enter(git_root, bufnr)
     commit_line = commit_line - 1
   end
 
-  local path = vim.b[bufnr].line_to_path[line] 
+  local path = vim.b[bufnr].line_to_path[line]
 
   if path ~= vim.NIL and path ~= nil then
     load_entry(git_root, commit, path)

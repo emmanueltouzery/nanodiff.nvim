@@ -90,8 +90,8 @@ local function render_tree(lines, line_to_path, tree, depth, full_path)
         display_str = string.format("[%s]%s %s %s +%d -%d", item.status, prefix, icon, item.path, item.added or 0, item.deleted or 0)
         target_path = item.path
       end
-      table.insert(lines, display_str)
       line_to_path[#lines+1] = path_append(full_path, target_path)
+      table.insert(lines, display_str)
     end
   end
 end
