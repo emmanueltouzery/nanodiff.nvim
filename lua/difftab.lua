@@ -43,7 +43,7 @@ function M.open_diff_tab(sections, git_root)
   local line_to_section = {}
   for _, section in ipairs(sections) do
     line_to_section[#lines+1] = section
-    filetree.add_section(lines, line_to_path, section.title, section.contents)
+    filetree.add_section(lines, line_to_path, {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents)
   end
   vim.b[left_buf].line_to_path = line_to_path
   vim.b[left_buf].line_to_section = line_to_section

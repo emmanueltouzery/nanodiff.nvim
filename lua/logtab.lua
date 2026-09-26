@@ -26,19 +26,27 @@ local function format_commit_summary(commit)
 
   local short_hash = commit.hash:sub(1, 8)
 
+  local added_str = tostring(total_added)
+  local added_pad = string.rep(" ", math.max(0, 5 - #added_str))
+
+  local deleted_str = tostring(total_deleted)
+  local deleted_pad = string.rep(" ", math.max(0, 5 - #deleted_str))
+
   -- %-10s -> Left-aligned string (10 chars wide)
-  -- %5d   -> Right-aligned integer (5 chars wide)
-  return string.format(
-    "%-10s | %5d     %5d | %s%s %s %s, %s",
-    files_str,
-    total_added,
-    total_deleted,
-    short_hash,
-    refs_str,
-    commit.subject,
-    commit.author_name,
-    commit.relative_date
-  )
+  return {
+    {string.format("%-10s", files_str), "DiffviewFilePanelCounter"},
+    {" | ", "DiffviewNonText"},
+    {added_pad, nil},
+    {added_str, "DiffviewFilePanelInsertions"},
+    {deleted_pad, nil},
+    {deleted_str, "DiffviewFilePanelDeletions"},
+    {"| ", "DiffviewNonText"},
+    {short_hash, "DiffviewHash"},
+    {refs_str, "DiffviewReference"},
+    {" " .. commit.subject, "DiffviewFilePanelSelected"},
+    {" " .. commit.author_name, "DiffviewFilePanelPath"},
+    {", " .. commit.relative_date,  "DiffviewFilePanelPath"},
+  }
 end
 
 local function load_entry(git_root, commit, path)
