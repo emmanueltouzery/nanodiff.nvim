@@ -64,6 +64,8 @@ function M.open_diff_tab(sections, git_root)
 
   -- Set left window width to 40 characters
   vim.api.nvim_win_set_width(left_win, 40)
+  -- Lock the width against <C-W>= balancing
+  vim.wo[left_win].winfixwidth = true
 
   -- Get the width of the remaining available space
   local total_remaining = vim.api.nvim_win_get_width(diff1_win)

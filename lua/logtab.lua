@@ -118,6 +118,8 @@ function M.open_log_tab(log, git_root)
   })
 
   vim.api.nvim_win_set_height(bottom_win, 15)
+  -- Lock the height against <C-W>= balancing
+  vim.wo[bottom_win].winfixheight = true
 
   vim.b[bottom_buf].diff1_win = diff1_win
   vim.b[bottom_buf].diff2_win = diff2_win
