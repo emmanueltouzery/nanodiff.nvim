@@ -24,8 +24,7 @@ local function win_load_disk_file(winnr, path)
 end
 
 local function win_load_sha_file(winnr, git_root, path, sha)
-  local fname_without_path = vim.fs.basename(path)
-  local bufname = string.format("git://%s/%s", sha, fname_without_path)
+  local bufname = string.format("git://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
