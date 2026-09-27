@@ -169,9 +169,9 @@ local function get_diff_status(git_root)
   end
 
   return {
-    {title = "Staged", contents = staged, left_sha = current_commit, right_sha = "stage"},
-    {title = "Unstaged", contents = unstaged, left_sha = current_commit, right_sha = "disk"},
     {title = "Untracked", contents = untracked, left_sha = nil, right_sha = "disk"},
+    {title = "Changes", contents = unstaged, left_sha = current_commit, right_sha = "disk"},
+    {title = "Staged", contents = staged, left_sha = current_commit, right_sha = "stage"},
   }
 end
 
