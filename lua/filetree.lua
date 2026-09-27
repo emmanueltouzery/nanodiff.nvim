@@ -161,11 +161,6 @@ function M.add_section(lines, line_to_path, header, items, selected_path)
 
   local tree = build_tree(items, 0)
 
-  if #lines > 0 then
-    -- separator from the previous section
-    table.insert(lines, "")
-  end
-
   table.insert(lines, header)
   render_tree(lines, line_to_path, selected_path, tree, 1, "")
 end

@@ -13,6 +13,10 @@ local function refresh_left_buf(left_buf)
     if vim.b[left_buf].selected_item ~= nil and vim.b[left_buf].selected_item.section == section.title then
       selected_path = vim.b[left_buf].selected_item.path
     end
+    if #lines > 0 then
+      -- separator from the previous section
+      table.insert(lines, "")
+    end
     filetree.add_section(lines, line_to_path, {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents, selected_path)
   end
   vim.b[left_buf].line_to_path = line_to_path
