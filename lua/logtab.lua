@@ -102,6 +102,8 @@ end
 function M.open_log_tab(log, git_root)
   vim.cmd("tabnew")
 
+  vim.wo.spell = false
+
   -- Create an unlisted, scratch buffer for the bottom
   local bottom_buf = vim.api.nvim_create_buf(false, true)
 

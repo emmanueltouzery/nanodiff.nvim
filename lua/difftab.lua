@@ -55,6 +55,8 @@ end
 function M.open_diff_tab(sections, git_root)
   vim.cmd("tabnew")
 
+  vim.wo.spell = false
+
   -- Create an unlisted, scratch buffer for the left side
   local left_buf = vim.api.nvim_create_buf(false, true)
 
