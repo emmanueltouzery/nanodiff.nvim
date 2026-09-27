@@ -65,8 +65,11 @@ local function refresh_buttom_buf(bottom_buf)
   vim.b[bottom_buf].line_to_commit = line_to_commit
 
   vim.bo[bottom_buf].modifiable = true
+  vim.bo[bottom_buf].readonly = false
   filetree.render_lines(bottom_buf, lines)
   vim.bo[bottom_buf].modifiable = false
+  vim.bo[bottom_buf].readonly = true
+
 end
 
 local function load_entry(bottom_buf, git_root, commit, path)
@@ -112,10 +115,6 @@ function M.open_log_tab(log, git_root)
   local bottom_win = vim.api.nvim_get_current_win()
 
   vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
-
-  -- Lock buffer against accidental modifications
-  vim.bo[bottom_buf].modifiable = false
-  vim.bo[bottom_buf].readonly = true
 
   local bottom_win = vim.api.nvim_get_current_win()
 
