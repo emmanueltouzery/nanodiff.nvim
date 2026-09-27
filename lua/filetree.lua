@@ -37,6 +37,7 @@ function M.render_lines(bufnr, lines)
     end
   end
 
+  vim.api.nvim_buf_clear_namespace(0, ns_hl_id, 0, -1)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines_text)
 
   for _, item in ipairs(highlights) do
@@ -105,8 +106,7 @@ local function build_tree(items)
   return compress_and_sort(root)
 end
 
-local function render_tree(lines, line_to_path, tree, depth, full_path)
-  vim.api.nvim_buf_clear_namespace(0, ns_hl_id, 0, -1)
+local function render_tree(lines, line_to_path, selected_path, tree, depth, full_path)
   local function path_append(root, child)
     if root == "" then
       return child
@@ -124,39 +124,39 @@ local function render_tree(lines, line_to_path, tree, depth, full_path)
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      render_tree(lines, line_to_path, item.subs, depth + 1, path_append(full_path, item.path))
+      render_tree(lines, line_to_path, selected_path, item.subs, depth + 1, path_append(full_path, item.path))
     else
-      local line_info, target_path
+      local line_info
       local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
+      local item_full_path = path_append(full_path, item.path)
+      local path_hl = item_full_path == selected_path and "DiffviewFilePanelSelected" or nil
       if item.orig_path then
         line_info = {
           {string.format("[%s]%s ", item.status, prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.orig_path, nil},
           {" -> ", nil},
-          {item.path, nil},
+          {item.path, path_hl},
           {" +" .. (item.added or 0), "DiffviewFilePanelInsertions"},
           {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions"},
         }
-        target_path = item.path
       else
         line_info = {
           {string.format("[%s]%s ", item.status, prefix), nil},
           {icon .. " ", icon_hl_group},
-          {item.path .. " ", nil},
+          {item.path .. " ", path_hl},
           {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"},
           {" ", nil},
           {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"},
         }
-        target_path = item.path
       end
-      line_to_path[#lines+1] = path_append(full_path, target_path)
+      line_to_path[#lines+1] = item_full_path
       table.insert(lines, line_info)
     end
   end
 end
 
-function M.add_section(lines, line_to_path, header, items)
+function M.add_section(lines, line_to_path, header, items, selected_path)
   if #items == 0 then return end
 
   local tree = build_tree(items, 0)
@@ -167,7 +167,7 @@ function M.add_section(lines, line_to_path, header, items)
   end
 
   table.insert(lines, header)
-  render_tree(lines, line_to_path, tree, 1, "")
+  render_tree(lines, line_to_path, selected_path, tree, 1, "")
 end
 
 M._private = {

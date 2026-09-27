@@ -49,9 +49,31 @@ local function format_commit_summary(commit)
   }
 end
 
-local function load_entry(git_root, commit, path)
+local function refresh_buttom_buf(bottom_buf)
+  local lines = {}
+  local line_to_path = {}
+  local line_to_commit = {}
+  for _, commit in ipairs(vim.b[bottom_buf].log) do
+    line_to_commit[#lines+1] = commit
+    local selected_path = nil
+    if vim.b[bottom_buf].selected_item ~= nil and vim.b[bottom_buf].selected_item.commit == commit.hash then
+      selected_path = vim.b[bottom_buf].selected_item.path
+    end
+    filetree.add_section(lines, line_to_path, format_commit_summary(commit), commit.files, selected_path)
+  end
+  vim.b[bottom_buf].line_to_path = line_to_path
+  vim.b[bottom_buf].line_to_commit = line_to_commit
+
+  vim.bo[bottom_buf].modifiable = true
+  filetree.render_lines(bottom_buf, lines)
+  vim.bo[bottom_buf].modifiable = false
+end
+
+local function load_entry(bottom_buf, git_root, commit, path)
+  vim.b.selected_item = {commit = commit.hash, path = path}
   tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, commit.hash .. "^")
   tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, commit.hash)
+  refresh_buttom_buf(bottom_buf)
 end
 
 local function bottom_buf_handle_enter(git_root, bufnr)
@@ -70,7 +92,7 @@ local function bottom_buf_handle_enter(git_root, bufnr)
   local path = vim.b[bufnr].line_to_path[line]
 
   if path ~= vim.NIL and path ~= nil then
-    load_entry(git_root, commit, path)
+    load_entry(bufnr, git_root, commit, path)
   end
 end
 
@@ -84,19 +106,11 @@ function M.open_log_tab(log, git_root)
   vim.bo[bottom_buf].bufhidden = "wipe"
   vim.bo[bottom_buf].swapfile = false
 
-  local lines = {}
-  local line_to_path = {}
-  local line_to_commit = {}
-  for _, commit in ipairs(log) do
-    line_to_commit[#lines+1] = commit
-    filetree.add_section(lines, line_to_path, format_commit_summary(commit), commit.files)
-  end
-  vim.b[bottom_buf].line_to_path = line_to_path
-  vim.b[bottom_buf].line_to_commit = line_to_commit
+  vim.b[bottom_buf].log = log
 
+  refresh_buttom_buf(bottom_buf)
   local bottom_win = vim.api.nvim_get_current_win()
 
-  filetree.render_lines(bottom_buf, lines)
   vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
 
   -- Lock buffer against accidental modifications
@@ -136,8 +150,15 @@ function M.open_log_tab(log, git_root)
     -- due to sorting in the treeview (including sorting folders first), the first path
     -- in the section may not be the first in the treeview, so use line_to_path to
     -- find the first displayed path
-    local lowest_idx_line_to_path = math.min(unpack(vim.tbl_keys(line_to_path)))
-    load_entry(git_root, log[1], line_to_path[lowest_idx_line_to_path])
+    local lowest_idx_line_to_path
+    local l2p = vim.b[bottom_buf].line_to_path
+    for i = 1, vim.api.nvim_buf_line_count(bottom_buf) do
+      if l2p[i] and l2p[i] ~= vim.NIL and l2p[i] ~= nil then
+        lowest_idx_line_to_path = i
+        break
+      end
+    end
+    load_entry(bottom_buf, git_root, log[1], vim.b[bottom_buf].line_to_path[lowest_idx_line_to_path])
   end
 
   vim.keymap.set('n', '<CR>', function() bottom_buf_handle_enter(git_root, bottom_buf) end, {
