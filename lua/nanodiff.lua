@@ -107,8 +107,7 @@ local function get_diff_status(git_root)
   local output = async_sys({"git", "status", "--porcelain=v2"}, {cwd = git_root})
 
   local staged = {}
-  local unstaged = {}
-  local untracked = {}
+  local changes = {}
 
   for line in output.stdout:gmatch("[^\r\n]+") do
     local prefix = line:sub(1, 1)
@@ -118,14 +117,14 @@ local function get_diff_status(git_root)
       local xy, path = line:match("^1%s+(%S+)%s+%S+%s+%S+%s+%S+%s+%S+%s+%S+%s+%S+%s+(.+)$")
       if xy then
         local x = xy:sub(1, 1) -- Staged
-        local y = xy:sub(2, 2) -- Unstaged
+        local y = xy:sub(2, 2) -- Changes
 
         local stats = diff_numstat[path]
         if x ~= "." then
           table.insert(staged, { path = path, status = x, added = stats.added, deleted = stats.deleted })
         end
         if y ~= "." then
-          table.insert(unstaged, { path = path, status = y, added = stats.added, deleted = stats.deleted })
+          table.insert(changes, { path = path, status = y, added = stats.added, deleted = stats.deleted })
         end
       else
         print("couldn't match line: " .. line)
@@ -155,7 +154,7 @@ local function get_diff_status(git_root)
         end
 
         if y ~= "." then
-          table.insert(unstaged, { path = path, status = y, added = stats.added, deleted = stats.deleted })
+          table.insert(changes, { path = path, status = y, added = stats.added, deleted = stats.deleted })
         end
       end
 
@@ -163,14 +162,13 @@ local function get_diff_status(git_root)
       -- Untracked files: "? <path>"
       local path = line:match("^%?%s+(.+)$")
       if path then
-        table.insert(untracked, { path = path, status = "?", added = count_lines_async(path), deleted = 0 })
+        table.insert(changes, { path = path, status = "?", added = count_lines_async(path), deleted = 0, left_sha = "nil" })
       end
     end
   end
 
   return {
-    {title = "Untracked", contents = untracked, left_sha = nil, right_sha = "disk"},
-    {title = "Changes", contents = unstaged, left_sha = current_commit, right_sha = "disk"},
+    {title = "Changes", contents = changes, left_sha = current_commit, right_sha = "disk"},
     {title = "Staged", contents = staged, left_sha = current_commit, right_sha = "stage"},
   }
 end

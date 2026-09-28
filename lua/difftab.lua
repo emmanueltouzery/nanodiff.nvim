@@ -6,6 +6,7 @@ local M = {}
 local function refresh_left_buf(left_buf)
   local lines = {}
   local line_to_path = {}
+  local line_to_extra = {}
   local line_to_section = {}
   for _, section in ipairs(vim.b[left_buf].sections) do
     line_to_section[#lines+1] = section
@@ -17,9 +18,13 @@ local function refresh_left_buf(left_buf)
       -- separator from the previous section
       table.insert(lines, "")
     end
-    filetree.add_section(lines, line_to_path, {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents, selected_path)
+    filetree.add_section(
+      lines, line_to_path, line_to_extra,
+      {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents, selected_path
+    )
   end
   vim.b[left_buf].line_to_path = line_to_path
+  vim.b[left_buf].line_to_extra = line_to_extra
   vim.b[left_buf].line_to_section = line_to_section
 
   vim.bo[left_buf].modifiable = true
@@ -29,10 +34,10 @@ local function refresh_left_buf(left_buf)
   vim.bo[left_buf].readonly = true
 end
 
-local function load_entry(left_buf, section, path)
+local function load_entry(left_buf, section, path, extra)
   vim.b.selected_item = {section = section.title, path = path}
-  tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, section.left_sha)
-  tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, section.right_sha)
+  tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, (extra or {}).left_sha or section.left_sha)
+  tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, (extra or {}).right_sha or section.right_sha)
   refresh_left_buf(left_buf)
 end
 
@@ -49,10 +54,11 @@ local function left_buf_handle_enter(git_root, bufnr)
     section_line = section_line - 1
   end
 
-  local path = vim.b[bufnr].line_to_path[line] 
+  local path = vim.b[bufnr].line_to_path[line]
+  local extra = vim.b[bufnr].line_to_extra[line]
 
   if path ~= vim.NIL and path ~= nil then
-    load_entry(bufnr, section, path)
+    load_entry(bufnr, section, path, extra ~= vim.NIL and extra or nil)
   end
 end
 
@@ -116,7 +122,11 @@ function M.open_diff_tab(sections, git_root)
         break
       end
     end
-    load_entry(left_buf, first_nonempty_section, vim.b[left_buf].line_to_path[lowest_idx_line_to_path])
+    local extra = vim.b[left_buf].line_to_extra[lowest_idx_line_to_path]
+    load_entry(
+      left_buf, first_nonempty_section,
+      vim.b[left_buf].line_to_path[lowest_idx_line_to_path],
+      extra ~= vim.NIL and extra or nil)
   end
 
   vim.keymap.set('n', '<CR>', function() left_buf_handle_enter(git_root, left_buf) end, {

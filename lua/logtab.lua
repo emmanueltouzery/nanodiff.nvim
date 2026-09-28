@@ -52,6 +52,7 @@ end
 local function refresh_buttom_buf(bottom_buf)
   local lines = {}
   local line_to_path = {}
+  local line_to_extra = {}
   local line_to_commit = {}
   for _, commit in ipairs(vim.b[bottom_buf].log) do
     line_to_commit[#lines+1] = commit
@@ -59,7 +60,7 @@ local function refresh_buttom_buf(bottom_buf)
     if vim.b[bottom_buf].selected_item ~= nil and vim.b[bottom_buf].selected_item.commit == commit.hash then
       selected_path = vim.b[bottom_buf].selected_item.path
     end
-    filetree.add_section(lines, line_to_path, format_commit_summary(commit), commit.files, selected_path)
+    filetree.add_section(lines, line_to_path, line_to_extra, format_commit_summary(commit), commit.files, selected_path)
   end
   vim.b[bottom_buf].line_to_path = line_to_path
   vim.b[bottom_buf].line_to_commit = line_to_commit

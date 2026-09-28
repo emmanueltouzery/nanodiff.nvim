@@ -106,7 +106,7 @@ local function build_tree(items)
   return compress_and_sort(root)
 end
 
-local function render_tree(lines, line_to_path, selected_path, tree, depth, full_path)
+local function render_tree(lines, line_to_path, line_to_extra, selected_path, tree, depth, full_path)
   local function path_append(root, child)
     if root == "" then
       return child
@@ -124,15 +124,17 @@ local function render_tree(lines, line_to_path, selected_path, tree, depth, full
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      render_tree(lines, line_to_path, selected_path, item.subs, depth + 1, path_append(full_path, item.path))
+      render_tree(lines, line_to_path, line_to_extra, selected_path, item.subs, depth + 1, path_append(full_path, item.path))
     else
       local line_info
       local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
       local item_full_path = path_append(full_path, item.path)
       local path_hl = item_full_path == selected_path and "DiffviewFilePanelSelected" or nil
+      local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
       if item.orig_path then
         line_info = {
-          {string.format("[%s]%s ", item.status, prefix), nil},
+          {string.format("[%s]", item.status), status_hl},
+          {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.orig_path, nil},
           {" -> ", nil},
@@ -142,7 +144,8 @@ local function render_tree(lines, line_to_path, selected_path, tree, depth, full
         }
       else
         line_info = {
-          {string.format("[%s]%s ", item.status, prefix), nil},
+          {string.format("[%s]", item.status), status_hl},
+          {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.path .. " ", path_hl},
           {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"},
@@ -151,18 +154,21 @@ local function render_tree(lines, line_to_path, selected_path, tree, depth, full
         }
       end
       line_to_path[#lines+1] = item_full_path
+      if item.left_sha then
+        line_to_extra[#lines+1] = {left_sha = item.left_sha} -- used for untracked files
+      end
       table.insert(lines, line_info)
     end
   end
 end
 
-function M.add_section(lines, line_to_path, header, items, selected_path)
+function M.add_section(lines, line_to_path, line_to_extra, header, items, selected_path)
   if #items == 0 then return end
 
   local tree = build_tree(items, 0)
 
   table.insert(lines, header)
-  render_tree(lines, line_to_path, selected_path, tree, 1, "")
+  render_tree(lines, line_to_path, line_to_extra, selected_path, tree, 1, "")
 end
 
 M._private = {
