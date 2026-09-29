@@ -1,5 +1,6 @@
 local filetree = require('filetree')
 local tabcommon = require('tabcommon')
+local bufdata = require('bufdata')
 
 local M = {}
 
@@ -54,16 +55,20 @@ local function refresh_buttom_buf(bottom_buf)
   local line_to_path = {}
   local line_to_extra = {}
   local line_to_commit = {}
-  for _, commit in ipairs(vim.b[bottom_buf].log) do
+  local bottom_buf_data = bufdata.get_data(bottom_buf)
+  for _, commit in ipairs(bottom_buf_data.log) do
     line_to_commit[#lines+1] = commit
     local selected_path = nil
-    if vim.b[bottom_buf].selected_item ~= nil and vim.b[bottom_buf].selected_item.commit == commit.hash then
-      selected_path = vim.b[bottom_buf].selected_item.path
+    if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.commit == commit.hash then
+      selected_path = bottom_buf_data.selected_item.path
     end
-    filetree.add_section(lines, line_to_path, line_to_extra, format_commit_summary(commit), commit.files, selected_path)
+    filetree.add_section(
+      lines, line_to_path, line_to_extra,
+      format_commit_summary(commit), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
+    )
   end
-  vim.b[bottom_buf].line_to_path = line_to_path
-  vim.b[bottom_buf].line_to_commit = line_to_commit
+  bottom_buf_data.line_to_path = line_to_path
+  bottom_buf_data.line_to_commit = line_to_commit
 
   vim.bo[bottom_buf].modifiable = true
   vim.bo[bottom_buf].readonly = false
@@ -74,28 +79,40 @@ local function refresh_buttom_buf(bottom_buf)
 end
 
 local function load_entry(bottom_buf, git_root, commit, path)
-  vim.b.selected_item = {commit = commit.hash, path = path}
-  tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, commit.hash .. "^")
-  tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, commit.hash)
+  local bottom_buf_data = bufdata.get_data(bottom_buf)
+  bottom_buf_data.selected_item = {commit = commit.hash, path = path}
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, path, commit.hash .. "^")
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, path, commit.hash)
   refresh_buttom_buf(bottom_buf)
 end
 
 local function bottom_buf_handle_enter(git_root, bufnr)
   local line = vim.fn.line('.')
+  local bdata = bufdata.get_data(bufnr)
 
   local commit_line = line
   local commit
   while commit_line > 0 do
-    commit = vim.b[bufnr].line_to_commit[commit_line] 
-    if commit ~= vim.NIL and commit ~= nil then
+    commit = bdata.line_to_commit[commit_line] 
+    if commit ~= nil then
       break
     end
     commit_line = commit_line - 1
   end
 
-  local path = vim.b[bufnr].line_to_path[line]
+  local path = bdata.line_to_path[line]
 
-  if path ~= vim.NIL and path ~= nil then
+  if commit_line == line then
+    if bdata.tree_expand_st[commit.hash] == nil then
+      bdata.tree_expand_st[commit.hash] = {}
+    end
+    local prev_expanded = bdata.tree_expand_st[commit.hash].section_expanded
+    if prev_expanded == nil then
+      prev_expanded = false
+    end
+    bdata.tree_expand_st[commit.hash].section_expanded = not prev_expanded
+    refresh_buttom_buf(bufnr)
+  elseif path ~= nil then
     load_entry(bufnr, git_root, commit, path)
   end
 end
@@ -112,7 +129,13 @@ function M.open_log_tab(log, git_root)
   vim.bo[bottom_buf].bufhidden = "wipe"
   vim.bo[bottom_buf].swapfile = false
 
-  vim.b[bottom_buf].log = log
+  local bottom_buf_data = bufdata.get_data(bottom_buf)
+  bottom_buf_data.log = log
+  bottom_buf_data.tree_expand_st = {}
+
+  if #log > 0 then
+    bottom_buf_data.tree_expand_st[log[1].hash] = {section_expanded = true}
+  end
 
   refresh_buttom_buf(bottom_buf)
   local bottom_win = vim.api.nvim_get_current_win()
@@ -137,8 +160,8 @@ function M.open_log_tab(log, git_root)
   -- Lock the height against <C-W>= balancing
   vim.wo[bottom_win].winfixheight = true
 
-  vim.b[bottom_buf].diff1_win = diff1_win
-  vim.b[bottom_buf].diff2_win = diff2_win
+  bottom_buf_data.diff1_win = diff1_win
+  bottom_buf_data.diff2_win = diff2_win
 
   -- Configure bottom window options (including winfixbuf)
   vim.wo[bottom_win].winfixbuf = true -- Lock window to this buffer
@@ -153,14 +176,14 @@ function M.open_log_tab(log, git_root)
     -- in the section may not be the first in the treeview, so use line_to_path to
     -- find the first displayed path
     local lowest_idx_line_to_path
-    local l2p = vim.b[bottom_buf].line_to_path
+    local l2p = bottom_buf_data.line_to_path
     for i = 1, vim.api.nvim_buf_line_count(bottom_buf) do
-      if l2p[i] and l2p[i] ~= vim.NIL and l2p[i] ~= nil then
+      if l2p[i] and l2p[i] ~= nil then
         lowest_idx_line_to_path = i
         break
       end
     end
-    load_entry(bottom_buf, git_root, log[1], vim.b[bottom_buf].line_to_path[lowest_idx_line_to_path])
+    load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_path[lowest_idx_line_to_path])
   end
 
   vim.keymap.set('n', '<CR>', function() bottom_buf_handle_enter(git_root, bottom_buf) end, {

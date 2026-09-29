@@ -1,5 +1,6 @@
 local filetree = require('filetree')
 local tabcommon = require('tabcommon')
+local bufdata = require('bufdata')
 
 local M = {}
 
@@ -8,11 +9,12 @@ local function refresh_left_buf(left_buf)
   local line_to_path = {}
   local line_to_extra = {}
   local line_to_section = {}
-  for _, section in ipairs(vim.b[left_buf].sections) do
+  local left_buf_data = bufdata.get_data(left_buf)
+  for _, section in ipairs(left_buf_data.sections) do
     line_to_section[#lines+1] = section
     local selected_path = nil
-    if vim.b[left_buf].selected_item ~= nil and vim.b[left_buf].selected_item.section == section.title then
-      selected_path = vim.b[left_buf].selected_item.path
+    if left_buf_data.selected_item ~= nil and left_buf_data.selected_item.section == section.title then
+      selected_path = left_buf_data.selected_item.path
     end
     if #lines > 0 then
       -- separator from the previous section
@@ -20,12 +22,13 @@ local function refresh_left_buf(left_buf)
     end
     filetree.add_section(
       lines, line_to_path, line_to_extra,
-      {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents, selected_path
+      {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents,
+      selected_path, left_buf_data.tree_expand_st[section.title], true
     )
   end
-  vim.b[left_buf].line_to_path = line_to_path
-  vim.b[left_buf].line_to_extra = line_to_extra
-  vim.b[left_buf].line_to_section = line_to_section
+  left_buf_data.line_to_path = line_to_path
+  left_buf_data.line_to_extra = line_to_extra
+  left_buf_data.line_to_section = line_to_section
 
   vim.bo[left_buf].modifiable = true
   vim.bo[left_buf].readonly = false
@@ -35,30 +38,42 @@ local function refresh_left_buf(left_buf)
 end
 
 local function load_entry(left_buf, section, path, extra)
-  vim.b.selected_item = {section = section.title, path = path}
-  tabcommon.win_load_buf(git_root, vim.b.diff1_win, path, (extra or {}).left_sha or section.left_sha)
-  tabcommon.win_load_buf(git_root, vim.b.diff2_win, path, (extra or {}).right_sha or section.right_sha)
+  local left_buf_data = bufdata.get_data(left_buf)
+  left_buf_data.selected_item = {section = section.title, path = path}
+  tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, path, (extra or {}).left_sha or section.left_sha)
+  tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, path, (extra or {}).right_sha or section.right_sha)
   refresh_left_buf(left_buf)
 end
 
 local function left_buf_handle_enter(git_root, bufnr)
   local line = vim.fn.line('.')
+  local bdata = bufdata.get_data(bufnr)
 
   local section_line = line
   local section
   while section_line > 0 do
-    section = vim.b[bufnr].line_to_section[section_line] 
-    if section ~= vim.NIL and section ~= nil then
+    section = bdata.line_to_section[section_line] 
+    if section ~= nil then
       break
     end
     section_line = section_line - 1
   end
 
-  local path = vim.b[bufnr].line_to_path[line]
-  local extra = vim.b[bufnr].line_to_extra[line]
+  local path = bdata.line_to_path[line]
+  local extra = bdata.line_to_extra[line]
 
-  if path ~= vim.NIL and path ~= nil then
-    load_entry(bufnr, section, path, extra ~= vim.NIL and extra or nil)
+  if section_line == line then
+    if bdata.tree_expand_st[section.title] == nil then
+      bdata.tree_expand_st[section.title] = {}
+    end
+    local prev_expanded = bdata.tree_expand_st[section.title].section_expanded
+    if prev_expanded == nil then
+      prev_expanded = true
+    end
+    bdata.tree_expand_st[section.title].section_expanded = not prev_expanded
+    refresh_left_buf(bufnr)
+  elseif path ~= nil then
+    load_entry(bufnr, section, path, extra)
   end
 end
 
@@ -69,12 +84,14 @@ function M.open_diff_tab(sections, git_root)
 
   -- Create an unlisted, scratch buffer for the left side
   local left_buf = vim.api.nvim_create_buf(false, true)
+  local left_buf_data = bufdata.get_data(left_buf)
 
   vim.bo[left_buf].buftype = "nofile"
   vim.bo[left_buf].bufhidden = "wipe"
   vim.bo[left_buf].swapfile = false
 
-  vim.b[left_buf].sections = sections
+  left_buf_data.sections = sections
+  left_buf_data.tree_expand_st = {}
 
   refresh_left_buf(left_buf)
 
@@ -98,8 +115,8 @@ function M.open_diff_tab(sections, git_root)
   vim.cmd("rightbelow " .. half_width .. "vsplit")
   local diff2_win = vim.api.nvim_get_current_win()
 
-  vim.b[left_buf].diff1_win = diff1_win
-  vim.b[left_buf].diff2_win = diff2_win
+  left_buf_data.diff1_win = diff1_win
+  left_buf_data.diff2_win = diff2_win
 
   -- Configure left window options (including winfixbuf)
   vim.wo[left_win].winfixbuf = true -- Lock window to this buffer
@@ -115,18 +132,18 @@ function M.open_diff_tab(sections, git_root)
     -- in the section may not be the first in the treeview, so use line_to_path to
     -- find the first displayed path
     local lowest_idx_line_to_path
-    local l2p = vim.b[left_buf].line_to_path
+    local l2p = left_buf_data.line_to_path
     for i = 1, vim.api.nvim_buf_line_count(left_buf) do
       if l2p[i] and l2p[i] ~= vim.NIL and l2p[i] ~= nil then
         lowest_idx_line_to_path = i
         break
       end
     end
-    local extra = vim.b[left_buf].line_to_extra[lowest_idx_line_to_path]
+    local extra = left_buf_data.line_to_extra[lowest_idx_line_to_path]
     load_entry(
       left_buf, first_nonempty_section,
-      vim.b[left_buf].line_to_path[lowest_idx_line_to_path],
-      extra ~= vim.NIL and extra or nil)
+      left_buf_data.line_to_path[lowest_idx_line_to_path],
+      extra)
   end
 
   vim.keymap.set('n', '<CR>', function() left_buf_handle_enter(git_root, left_buf) end, {

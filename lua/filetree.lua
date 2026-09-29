@@ -162,13 +162,22 @@ local function render_tree(lines, line_to_path, line_to_extra, selected_path, tr
   end
 end
 
-function M.add_section(lines, line_to_path, line_to_extra, header, items, selected_path)
+function M.add_section(
+    lines, line_to_path, line_to_extra,
+    header, items, selected_path, section_expand_st, section_expand_default)
   if #items == 0 then return end
 
-  local tree = build_tree(items, 0)
-
   table.insert(lines, header)
-  render_tree(lines, line_to_path, line_to_extra, selected_path, tree, 1, "")
+
+  local expanded = section_expand_default or false
+  if section_expand_st ~= nil then
+    expanded = section_expand_st.section_expanded
+  end
+
+  if expanded then
+    local tree = build_tree(items, 0)
+    render_tree(lines, line_to_path, line_to_extra, selected_path, tree, 1, "")
+  end
 end
 
 M._private = {
