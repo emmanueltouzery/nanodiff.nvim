@@ -6,12 +6,9 @@ local M = {}
 
 local function refresh_left_buf(left_buf)
   local lines = {}
-  local line_to_path = {}
-  local line_to_extra = {}
-  local line_to_section = {}
   local left_buf_data = bufdata.get_data(left_buf)
+  left_buf_data.line_to_item = {}
   for _, section in ipairs(left_buf_data.sections) do
-    line_to_section[#lines+1] = section
     local selected_path = nil
     if left_buf_data.selected_item ~= nil and left_buf_data.selected_item.section == section.title then
       selected_path = left_buf_data.selected_item.path
@@ -20,8 +17,8 @@ local function refresh_left_buf(left_buf)
       -- separator from the previous section
       table.insert(lines, "")
     end
-    filetree.add_section(
-      lines, line_to_path, line_to_extra,
+    filetree.add_section(section,
+      lines, left_buf_data.line_to_item,
       {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents,
       selected_path, left_buf_data.tree_expand_st[section.title], true
     )
@@ -37,11 +34,11 @@ local function refresh_left_buf(left_buf)
   vim.bo[left_buf].readonly = true
 end
 
-local function load_entry(left_buf, section, path, extra)
+local function load_entry(left_buf, section, item)
   local left_buf_data = bufdata.get_data(left_buf)
-  left_buf_data.selected_item = {section = section.title, path = path}
-  tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, path, (extra or {}).left_sha or section.left_sha)
-  tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, path, (extra or {}).right_sha or section.right_sha)
+  left_buf_data.selected_item = {section = section.title, path = item.path}
+  tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
+  tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, item.path, item.right_sha or section.right_sha)
   refresh_left_buf(left_buf)
 end
 
@@ -50,19 +47,32 @@ local function left_buf_handle_enter(git_root, bufnr)
   local bdata = bufdata.get_data(bufnr)
 
   local section_line = line
-  local section
+  local section_item
   while section_line > 0 do
-    section = bdata.line_to_section[section_line] 
-    if section ~= nil then
+    section_item = bdata.line_to_item[section_line] 
+    if section_item ~= nil and section_item.type == "section" then
       break
     end
     section_line = section_line - 1
   end
+  local section = section_item.section_obj
 
-  local path = bdata.line_to_path[line]
-  local extra = bdata.line_to_extra[line]
+  local item = bdata.line_to_item[line]
+  if item == nil then
+    return
+  end
 
-  if section_line == line then
+  if item.type == "dir" then
+    bdata.tree_expand_st[section.title] = bdata.tree_expand_st[section.title] or { section_expanded = true }
+    bdata.tree_expand_st[section.title].folder_expanded = bdata.tree_expand_st[section.title].folder_expanded or {}
+    local folder_expanded = bdata.tree_expand_st[section.title].folder_expanded
+    prev_expanded = folder_expanded[item.path]
+    if prev_expanded == nil then
+      prev_expanded = true
+    end
+    folder_expanded[item.path] = not prev_expanded
+    refresh_left_buf(bufnr)
+  elseif item.type == "section" then
     if bdata.tree_expand_st[section.title] == nil then
       bdata.tree_expand_st[section.title] = {}
     end
@@ -72,8 +82,8 @@ local function left_buf_handle_enter(git_root, bufnr)
     end
     bdata.tree_expand_st[section.title].section_expanded = not prev_expanded
     refresh_left_buf(bufnr)
-  elseif path ~= nil then
-    load_entry(bufnr, section, path, extra)
+  elseif item.type == "path" then
+    load_entry(bufnr, section, item)
   end
 end
 
@@ -132,18 +142,16 @@ function M.open_diff_tab(sections, git_root)
     -- in the section may not be the first in the treeview, so use line_to_path to
     -- find the first displayed path
     local lowest_idx_line_to_path
-    local l2p = left_buf_data.line_to_path
+    local l2p = left_buf_data.line_to_item
     for i = 1, vim.api.nvim_buf_line_count(left_buf) do
-      if l2p[i] and l2p[i] ~= vim.NIL and l2p[i] ~= nil then
+      if l2p[i] and l2p[i] ~= nil and l2p[i].type == "path" then
         lowest_idx_line_to_path = i
         break
       end
     end
-    local extra = left_buf_data.line_to_extra[lowest_idx_line_to_path]
     load_entry(
       left_buf, first_nonempty_section,
-      left_buf_data.line_to_path[lowest_idx_line_to_path],
-      extra)
+      left_buf_data.line_to_item[lowest_idx_line_to_path])
   end
 
   vim.keymap.set('n', '<CR>', function() left_buf_handle_enter(git_root, left_buf) end, {

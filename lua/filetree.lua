@@ -106,7 +106,7 @@ local function build_tree(items)
   return compress_and_sort(root)
 end
 
-local function render_tree(lines, line_to_path, line_to_extra, selected_path, tree, depth, full_path)
+local function render_tree(lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
   local function path_append(root, child)
     if root == "" then
       return child
@@ -118,13 +118,19 @@ local function render_tree(lines, line_to_path, line_to_extra, selected_path, tr
   local prefix = string.rep(" ", depth*2)
   for _, item in ipairs(tree) do
     if item.is_dir then
+      if section_expand_st ~= nil then
+      end
+      local full_path = path_append(full_path, item.path)
+      line_to_item[#lines+1] = {type = "dir", path = full_path}
       -- 3 spaces for the prefix where files have the status [M] and so on
       table.insert(lines, {
         {"   " .. prefix, nil},
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      render_tree(lines, line_to_path, line_to_extra, selected_path, item.subs, depth + 1, path_append(full_path, item.path))
+      if section_expand_st.folder_expanded == nil or section_expand_st.folder_expanded[full_path] ~= false then
+        render_tree(lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
+      end
     else
       local line_info
       local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
@@ -153,20 +159,20 @@ local function render_tree(lines, line_to_path, line_to_extra, selected_path, tr
           {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"},
         }
       end
-      line_to_path[#lines+1] = item_full_path
+      line_to_item[#lines+1] = {type = "path", path = item_full_path}
       if item.left_sha then
-        line_to_extra[#lines+1] = {left_sha = item.left_sha} -- used for untracked files
+        line_to_item[#lines+1].left_sha = item.left_sha -- used for untracked files
       end
       table.insert(lines, line_info)
     end
   end
 end
 
-function M.add_section(
-    lines, line_to_path, line_to_extra,
+function M.add_section(section_obj, lines, line_to_item,
     header, items, selected_path, section_expand_st, section_expand_default)
   if #items == 0 then return end
 
+  line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
   table.insert(lines, header)
 
   local expanded = section_expand_default or false
@@ -176,7 +182,7 @@ function M.add_section(
 
   if expanded then
     local tree = build_tree(items, 0)
-    render_tree(lines, line_to_path, line_to_extra, selected_path, tree, 1, "")
+    render_tree(lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
   end
 end
 
