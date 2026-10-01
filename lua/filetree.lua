@@ -1,5 +1,6 @@
 local M = {}
 local devicons = require'nvim-web-devicons'
+local bufdata = require('bufdata')
 
 -- local folder_closed = "",
 local folder_open = " "
@@ -183,6 +184,52 @@ function M.add_section(section_obj, lines, line_to_item,
   if expanded then
     local tree = build_tree(items, 0)
     render_tree(lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
+  end
+end
+
+function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)
+  local line = vim.fn.line('.')
+  local bdata = bufdata.get_data(bufnr)
+
+  local section_line = line
+  local section_item
+  while section_line > 0 do
+    section_item = bdata.line_to_item[section_line] 
+    if section_item ~= nil and section_item.type == "section" then
+      break
+    end
+    section_line = section_line - 1
+  end
+  local section = section_item.section_obj
+  local section_key_val = section[section_key]
+
+  local item = bdata.line_to_item[line]
+  if item == nil then
+    return
+  end
+
+  if item.type == "dir" then
+    bdata.tree_expand_st[section_key_val] = bdata.tree_expand_st[section_key_val] or { section_expanded = true }
+    bdata.tree_expand_st[section_key_val].folder_expanded = bdata.tree_expand_st[section_key_val].folder_expanded or {}
+    local folder_expanded = bdata.tree_expand_st[section_key_val].folder_expanded
+    prev_expanded = folder_expanded[item.path]
+    if prev_expanded == nil then
+      prev_expanded = true
+    end
+    folder_expanded[item.path] = not prev_expanded
+    refresh(bufnr)
+  elseif item.type == "section" then
+    if bdata.tree_expand_st[section_key_val] == nil then
+      bdata.tree_expand_st[section_key_val] = {}
+    end
+    local prev_expanded = bdata.tree_expand_st[section_key_val].section_expanded
+    if prev_expanded == nil then
+      prev_expanded = section_expand_default
+    end
+    bdata.tree_expand_st[section_key_val].section_expanded = not prev_expanded
+    refresh(bufnr)
+  elseif item.type == "path" then
+    load_entry(bufnr, git_root, section, item)
   end
 end
 

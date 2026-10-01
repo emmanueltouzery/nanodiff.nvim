@@ -34,7 +34,7 @@ local function refresh_left_buf(left_buf)
   vim.bo[left_buf].readonly = true
 end
 
-local function load_entry(left_buf, section, item)
+local function load_entry(left_buf, git_root, section, item)
   local left_buf_data = bufdata.get_data(left_buf)
   left_buf_data.selected_item = {section = section.title, path = item.path}
   tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
@@ -43,48 +43,7 @@ local function load_entry(left_buf, section, item)
 end
 
 local function left_buf_handle_enter(git_root, bufnr)
-  local line = vim.fn.line('.')
-  local bdata = bufdata.get_data(bufnr)
-
-  local section_line = line
-  local section_item
-  while section_line > 0 do
-    section_item = bdata.line_to_item[section_line] 
-    if section_item ~= nil and section_item.type == "section" then
-      break
-    end
-    section_line = section_line - 1
-  end
-  local section = section_item.section_obj
-
-  local item = bdata.line_to_item[line]
-  if item == nil then
-    return
-  end
-
-  if item.type == "dir" then
-    bdata.tree_expand_st[section.title] = bdata.tree_expand_st[section.title] or { section_expanded = true }
-    bdata.tree_expand_st[section.title].folder_expanded = bdata.tree_expand_st[section.title].folder_expanded or {}
-    local folder_expanded = bdata.tree_expand_st[section.title].folder_expanded
-    prev_expanded = folder_expanded[item.path]
-    if prev_expanded == nil then
-      prev_expanded = true
-    end
-    folder_expanded[item.path] = not prev_expanded
-    refresh_left_buf(bufnr)
-  elseif item.type == "section" then
-    if bdata.tree_expand_st[section.title] == nil then
-      bdata.tree_expand_st[section.title] = {}
-    end
-    local prev_expanded = bdata.tree_expand_st[section.title].section_expanded
-    if prev_expanded == nil then
-      prev_expanded = true
-    end
-    bdata.tree_expand_st[section.title].section_expanded = not prev_expanded
-    refresh_left_buf(bufnr)
-  elseif item.type == "path" then
-    load_entry(bufnr, section, item)
-  end
+  filetree.handle_enter("title", true, git_root, bufnr, refresh_left_buf, load_entry)
 end
 
 function M.open_diff_tab(sections, git_root)
@@ -150,7 +109,7 @@ function M.open_diff_tab(sections, git_root)
       end
     end
     load_entry(
-      left_buf, first_nonempty_section,
+      left_buf, git_root, first_nonempty_section,
       left_buf_data.line_to_item[lowest_idx_line_to_path])
   end
 

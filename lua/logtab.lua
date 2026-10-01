@@ -69,7 +69,6 @@ local function refresh_bottom_buf(bottom_buf)
   filetree.render_lines(bottom_buf, lines)
   vim.bo[bottom_buf].modifiable = false
   vim.bo[bottom_buf].readonly = true
-
 end
 
 local function load_entry(bottom_buf, git_root, commit, item)
@@ -81,48 +80,7 @@ local function load_entry(bottom_buf, git_root, commit, item)
 end
 
 local function bottom_buf_handle_enter(git_root, bufnr)
-  local line = vim.fn.line('.')
-  local bdata = bufdata.get_data(bufnr)
-
-  local commit_line = line
-  local commit_item
-  while commit_line > 0 do
-    commit_item = bdata.line_to_item[commit_line] 
-    if commit_item ~= nil and commit_item.type == "section" then
-      break
-    end
-    commit_line = commit_line - 1
-  end
-  local commit = commit_item.section_obj
-
-  local item = bdata.line_to_item[line]
-  if item == nil then
-    return
-  end
-
-  if item.type == "dir" then
-    bdata.tree_expand_st[commit.hash] = bdata.tree_expand_st[commit.hash] or { section_expanded = true }
-    bdata.tree_expand_st[commit.hash].folder_expanded = bdata.tree_expand_st[commit.hash].folder_expanded or {}
-    local folder_expanded = bdata.tree_expand_st[commit.hash].folder_expanded
-    prev_expanded = folder_expanded[item.path]
-    if prev_expanded == nil then
-      prev_expanded = true
-    end
-    folder_expanded[item.path] = not prev_expanded
-    refresh_bottom_buf(bufnr)
-  elseif item.type == "section" then
-    if bdata.tree_expand_st[commit.hash] == nil then
-      bdata.tree_expand_st[commit.hash] = {}
-    end
-    local prev_expanded = bdata.tree_expand_st[commit.hash].section_expanded
-    if prev_expanded == nil then
-      prev_expanded = false
-    end
-    bdata.tree_expand_st[commit.hash].section_expanded = not prev_expanded
-    refresh_bottom_buf(bufnr)
-  elseif item.type == "path" then
-    load_entry(bufnr, git_root, commit, item)
-  end
+  filetree.handle_enter("hash", false, git_root, bufnr, refresh_bottom_buf, load_entry)
 end
 
 function M.open_log_tab(log, git_root)
