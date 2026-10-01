@@ -118,6 +118,8 @@ function M.open_diff_tab(sections, git_root)
     silent = true,
     buffer = left_buf
   })
+
+  return left_buf
 end
 
 return M

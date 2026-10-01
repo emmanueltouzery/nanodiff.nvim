@@ -250,6 +250,41 @@ local function get_diff_revspec(git_root, revspec)
   }}
 end
 
+local function revspec_display_commits_popup(git_root, left_buf, revspec)
+  local git_commits = async.run(function()
+    return async_sys({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root}).stdout
+  end):wait()
+  local git_commits_lines = vim.split(git_commits, "[\r\n]")
+
+  local bufnr = vim.api.nvim_create_buf(false, false)
+  vim.bo[bufnr].filetype = "git"
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
+  local width = vim.api.nvim_get_option("columns")
+  local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
+  local win_height = pref_height or 50
+  if win_height > height then
+    win_height = height
+  end
+
+  local opts = {
+    style = "minimal",
+    border = "rounded",
+    relative = "editor",
+    row = (height - win_height) / 2,
+    col = (width - 100) / 2,
+    width = 100,
+    height = win_height,
+  }
+  local w = vim.api.nvim_open_win(bufnr, true, opts)
+  -- Adds a 1-character left margin inside the buffer area
+  vim.wo[w].foldcolumn = "1"
+  vim.api.nvim_win_call(w, function()
+    vim.keymap.set({'n', 'v'}, 'q', function()
+      vim.api.nvim_win_close(vim.api.nvim_get_current_win(), false)
+    end, {buffer = true})
+  end)
+end
+
 function M.revspec(revspec)
   local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
     kind='progress', status='running', title='Git revspec', source='nanodiff', percent = nil
@@ -261,7 +296,13 @@ function M.revspec(revspec)
   local status = 'failed'
   if ok then
     status = 'success'
-    difftab.open_diff_tab(contents, git_root)
+    local left_buf = difftab.open_diff_tab(contents, git_root)
+
+    vim.keymap.set('n', 'L', function() revspec_display_commits_popup(git_root, left_buf, revspec) end, {
+      noremap = true,
+      silent = true,
+      buffer = left_buf
+    })
   end
   vim.api.nvim_echo({{'Done'}}, true, {
     id = msg_id, kind='progress', status=status, source='nanodiff', title='Git revspec'
