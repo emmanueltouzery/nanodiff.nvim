@@ -190,6 +190,14 @@ end
 local function get_diff_revspec(git_root, revspec)
   local commits_stdout = async_sys({"git", "rev-parse", "--revs-only", "--no-flags", revspec}, {text = true, cwd = git_root}).stdout
   local right_sha, left_sha = unpack(vim.split(commits_stdout:gsub("%^", ""), "%s+", { trimempty = true }))
+  if left_sha == nil then
+    -- git rev-parse resolved a single sha. that means the revspec contained a single sha,
+    -- we're comparing that sha with the worktree
+    left_sha = right_sha
+    right_sha = "disk"
+    -- update the revspec so that revspec_display_commits_popup works properly
+    revspec = revspec .. "..HEAD"
+  end
 
   -- need to fetch the per-file diffstats separately
   local diff_numstat_output = async_sys({"git", "diff", "--numstat", revspec})
