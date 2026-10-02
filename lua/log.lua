@@ -99,9 +99,15 @@ local function display_log_cmd(cmd_fn)
   })
 end
 
-function M.display_log()
+function M.display_log(single_file_path)
+  if type(single_file_path) == "number" then -- buffer number, often 0
+    single_file_path = vim.api.nvim_buf_get_name(single_file_path)
+  end
   display_log_cmd(function(git_root)
-    return {
+    if single_file_path then
+      single_file_path = vim.fs.relpath(git_root, single_file_path)
+    end
+    local cmd = {
       "git", "-P",
       "-c", "gc.auto=0",
       "-c", "core.quotePath=false",
@@ -110,8 +116,11 @@ function M.display_log()
       "--diff-merges=first-parent",
       "--numstat", "--raw",
       "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-      "--", git_root
     }
+    if single_file_path then
+      table.insert(cmd, "--follow")
+    end
+    return vim.list_extend(cmd, { "--", single_file_path or git_root })
   end)
 end
 
