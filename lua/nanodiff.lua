@@ -1,6 +1,7 @@
 local async = vim.async
 local difftab = require('difftab')
 local log = require('log')
+local conflicts = require('conflicts')
 
 local async_sys = async.wrap(3, vim.system)
 
@@ -167,7 +168,21 @@ local function get_diff_status(git_root)
     end
   end
 
+  -- need to fetch conflicts separately
+  local conflicts_output = async_sys({"git", "diff", "--name-only", "--diff-filter=U"})
+  local conflicted_files = vim.tbl_map(
+    function(p) return { path = p, status = "U" } end,
+    vim.split(conflicts_output.stdout, '\n', { trimempty = true })
+  )
+  local conflict_commits = {ours = "nil", theirs = "nil", base = "nil"}
+  if #conflicted_files > 0 then
+    conflict_commits = conflicts.get_conflict_commits(git_root)
+  end
+
   return {
+    -- TODO update the conflicts count when the files get loaded
+    -- the conflict marker is ^<<<<<<<
+    {title = "Conflicts", contents = conflicted_files, left_sha = conflict_commits.ours, mid_sha = "disk", right_sha = conflict_commits.theirs },
     {title = "Changes", contents = changes, left_sha = current_commit, right_sha = "disk"},
     {title = "Staged", contents = staged, left_sha = current_commit, right_sha = "stage"},
   }
