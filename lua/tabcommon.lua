@@ -17,6 +17,11 @@ end
 -- TODO bufhidden=wipe?
 local function win_load_disk_file(winnr, path)
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
+  if not vim.api.nvim_buf_is_loaded(bufnr) then
+    -- we know it's our buffer since it's not loaded.
+    -- wouldn't want to do that on the user's buffers
+    vim.bo[bufnr].bufhidden = "wipe"
+  end
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
   vim.api.nvim_win_set_buf(winnr, bufnr)
@@ -46,6 +51,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
         vim.bo[bufnr].readonly = true
         vim.bo[bufnr].modified = false
         vim.bo[bufnr].modifiable = false
+        vim.bo[bufnr].bufhidden = "wipe"
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
         win_set_diff(winnr)
@@ -60,6 +66,7 @@ local function win_load_null_file(winnr)
   if bufnr == -1 then
     bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
     vim.api.nvim_buf_set_name(bufnr, bufname)
+    vim.bo[bufnr].bufhidden = "wipe"
   end
   vim.api.nvim_win_set_buf(winnr, bufnr)
   win_set_diff(winnr)

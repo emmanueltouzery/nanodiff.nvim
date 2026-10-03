@@ -85,11 +85,9 @@ end
 
 function M.open_log_tab(log, git_root)
   vim.cmd("tabnew")
+  local bottom_buf = vim.api.nvim_win_get_buf(0)
 
   vim.wo.spell = false
-
-  -- Create an unlisted, scratch buffer for the bottom
-  local bottom_buf = vim.api.nvim_create_buf(false, true)
 
   vim.bo[bottom_buf].buftype = "nofile"
   vim.bo[bottom_buf].bufhidden = "wipe"
@@ -104,10 +102,6 @@ function M.open_log_tab(log, git_root)
   end
 
   refresh_bottom_buf(bottom_buf)
-  local bottom_win = vim.api.nvim_get_current_win()
-
-  vim.api.nvim_win_set_buf(bottom_win, bottom_buf)
-
   local bottom_win = vim.api.nvim_get_current_win()
 
   -- Open a new window above the current one

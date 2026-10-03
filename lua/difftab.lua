@@ -51,8 +51,7 @@ function M.open_diff_tab(sections, git_root)
 
   vim.wo.spell = false
 
-  -- Create an unlisted, scratch buffer for the left side
-  local left_buf = vim.api.nvim_create_buf(false, true)
+  local left_buf = vim.api.nvim_win_get_buf(0)
   local left_buf_data = bufdata.get_data(left_buf)
 
   vim.bo[left_buf].buftype = "nofile"
@@ -64,9 +63,7 @@ function M.open_diff_tab(sections, git_root)
 
   refresh_left_buf(left_buf)
 
-  -- Assign scratch buffer to the current window
   local left_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(left_win, left_buf)
 
   -- Split to create the right window
   vim.cmd("rightbelow vsplit")

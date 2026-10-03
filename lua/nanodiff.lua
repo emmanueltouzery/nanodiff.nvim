@@ -266,6 +266,7 @@ local function revspec_display_commits_popup(git_root, left_buf, revspec)
 
   local bufnr = vim.api.nvim_create_buf(false, false)
   vim.bo[bufnr].filetype = "git"
+  vim.bo[bufnr].bufhidden = "wipe"
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
   local width = vim.api.nvim_get_option("columns")
   local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
