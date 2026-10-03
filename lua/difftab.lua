@@ -39,6 +39,17 @@ local function load_entry(left_buf, git_root, section, item)
   left_buf_data.selected_item = {section = section.title, path = item.path}
   tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
   tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, item.path, item.right_sha or section.right_sha)
+  if section.mid_sha then
+    -- whatever, give it any buf for now
+    left_buf_data.diff3_win = vim.api.nvim_open_win(vim.api.nvim_win_get_buf(left_buf_data.diff1_win), true, {
+      split = "right",
+      win = left_buf_data.diff1_win,
+    })
+    tabcommon.win_load_buf(git_root, left_buf_data.diff3_win, item.path, section.mid_sha)
+  elseif left_buf_data.diff3_win then
+    vim.api.nvim_win_close(left_buf_data.diff3_win)
+    left_buf_data.diff3_win = nil
+  end
   refresh_left_buf(left_buf)
 end
 
