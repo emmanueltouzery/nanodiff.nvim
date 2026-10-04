@@ -59,7 +59,7 @@ local function refresh_bottom_buf(bottom_buf)
     if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.commit == commit.hash then
       selected_path = bottom_buf_data.selected_item.path
     end
-    filetree.add_section(commit,
+    filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
       format_commit_summary(commit), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
     )

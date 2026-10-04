@@ -14,7 +14,6 @@ local function win_set_diff(winnr)
   vim.api.nvim_set_option_value('foldenable', true, { win = winnr, scope = 'local' })
 end
 
--- TODO bufhidden=wipe?
 local function win_load_disk_file(winnr, path)
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   if not vim.api.nvim_buf_is_loaded(bufnr) then
@@ -26,6 +25,10 @@ local function win_load_disk_file(winnr, path)
   vim.bo[bufnr].buflisted = true
   vim.api.nvim_win_set_buf(winnr, bufnr)
   win_set_diff(winnr)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "NanodiffDiskBufferLoaded",
+    data = { path = path },
+  })
 end
 
 local function win_load_sha_file(winnr, git_root, path, sha)

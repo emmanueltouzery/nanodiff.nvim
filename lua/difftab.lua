@@ -1,6 +1,7 @@
 local filetree = require('filetree')
 local tabcommon = require('tabcommon')
 local bufdata = require('bufdata')
+local conflicts = require('conflicts')
 
 local M = {}
 
@@ -17,7 +18,7 @@ local function refresh_left_buf(left_buf)
       -- separator from the previous section
       table.insert(lines, "")
     end
-    filetree.add_section(section,
+    filetree.add_section(left_buf_data.conflicts_state, section,
       lines, left_buf_data.line_to_item,
       {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents,
       selected_path, left_buf_data.tree_expand_st[section.title], true
@@ -108,6 +109,13 @@ function M.open_diff_tab(sections, git_root)
 
   left_buf_data.sections = sections
   left_buf_data.tree_expand_st = {}
+
+  local conflicts_section = sections[1]
+  if sections[1].title ~= "Conflicts" then
+    error("Expected conflicts section: " .. sections[1].title)
+  end
+  left_buf_data.conflicts_state = {conflicts = {}}
+  conflicts.register_watchers(conflicts_section, left_buf_data.conflicts_state, function() refresh_left_buf(left_buf) end)
 
   refresh_left_buf(left_buf)
 

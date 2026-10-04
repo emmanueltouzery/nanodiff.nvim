@@ -107,7 +107,7 @@ local function build_tree(items)
   return compress_and_sort(root)
 end
 
-local function render_tree(lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
+local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
   local function path_append(root, child)
     if root == "" then
       return child
@@ -130,7 +130,7 @@ local function render_tree(lines, line_to_item, selected_path, section_expand_st
         {item.path, "DiffviewFolderName"},
       })
       if section_expand_st.folder_expanded == nil or section_expand_st.folder_expanded[full_path] ~= false then
-        render_tree(lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
+        render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
       end
     else
       local line_info
@@ -138,7 +138,16 @@ local function render_tree(lines, line_to_item, selected_path, section_expand_st
       local item_full_path = path_append(full_path, item.path)
       local path_hl = item_full_path == selected_path and "DiffviewFilePanelSelected" or nil
       local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
-      if item.orig_path then
+      if item.status == "U" then
+        -- git conflict: don't display the +- diffstat, rather the number of conflicts
+        line_info = {
+          {string.format("[%s]", item.status), status_hl},
+          {string.format("%s ", prefix), nil},
+          {icon .. " ", icon_hl_group},
+          {item.path .. " ", path_hl},
+          {conflicts_state.conflicts[item_full_path] ~= nil and #conflicts_state.conflicts[item_full_path] or "", "DiffviewFilePanelConflicts"},
+        }
+      elseif item.orig_path then
         line_info = {
           {string.format("[%s]", item.status), status_hl},
           {string.format("%s ", prefix), nil},
@@ -169,7 +178,7 @@ local function render_tree(lines, line_to_item, selected_path, section_expand_st
   end
 end
 
-function M.add_section(section_obj, lines, line_to_item,
+function M.add_section(conflicts_state, section_obj, lines, line_to_item,
     header, items, selected_path, section_expand_st, section_expand_default)
   if #items == 0 then return end
 
@@ -183,7 +192,7 @@ function M.add_section(section_obj, lines, line_to_item,
 
   if expanded then
     local tree = build_tree(items, 0)
-    render_tree(lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
+    render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
   end
 end
 
