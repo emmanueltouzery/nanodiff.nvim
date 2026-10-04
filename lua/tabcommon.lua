@@ -79,8 +79,6 @@ function M.win_load_buf(git_root, winnr, path, sha)
   vim.wo[winnr].scrollbind = false
   if sha == "disk" then
     win_load_disk_file(winnr, path)
-  elseif sha == "stage" then
-    win_load_sha_file(winnr, git_root, path, "")
   elseif sha == "nil" then
     win_load_null_file(winnr)
   else
