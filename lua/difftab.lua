@@ -81,6 +81,7 @@ local function load_entry(left_buf, git_root, section, item)
       vim.bo[buf2].bufhidden = "wipe"
       vim.bo[buf3].bufhidden = "wipe"
     end
+    tabcommon.win_load_buf(git_root, left_buf_data.diff3_win, item.path, section.mid_sha)
     tabcommon.win_load_buf(git_root, left_buf_data.diff4_win, item.path, section.bottom_sha)
   elseif left_buf_data.diff4_win then
     vim.api.nvim_win_close(left_buf_data.diff4_win, false)
