@@ -196,7 +196,7 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
   end
 end
 
-function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)
+function M.get_cur_section_item(bufnr)
   local line = vim.fn.line('.')
   local bdata = bufdata.get_data(bufnr)
 
@@ -210,12 +210,18 @@ function M.handle_enter(section_key, section_expand_default, git_root, bufnr, re
     section_line = section_line - 1
   end
   local section = section_item.section_obj
-  local section_key_val = section[section_key]
 
   local item = bdata.line_to_item[line]
+  return section, item
+end
+
+function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)
+  local section, item = M.get_cur_section_item(bufnr)
   if item == nil then
     return
   end
+  local section_key_val = section[section_key]
+  local bdata = bufdata.get_data(bufnr)
 
   if item.type == "dir" then
     bdata.tree_expand_st[section_key_val] = bdata.tree_expand_st[section_key_val] or { section_expanded = true }

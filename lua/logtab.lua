@@ -79,10 +79,6 @@ local function load_entry(bottom_buf, git_root, commit, item)
   refresh_bottom_buf(bottom_buf)
 end
 
-local function bottom_buf_handle_enter(git_root, bufnr)
-  filetree.handle_enter("hash", false, git_root, bufnr, refresh_bottom_buf, load_entry)
-end
-
 function M.open_log_tab(log, git_root)
   vim.cmd("tabnew")
   local bottom_buf = vim.api.nvim_win_get_buf(0)
@@ -146,11 +142,16 @@ function M.open_log_tab(log, git_root)
     load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_item[lowest_idx_line_to_path])
   end
 
-  vim.keymap.set('n', '<CR>', function() bottom_buf_handle_enter(git_root, bottom_buf) end, {
-    noremap = true,
-    silent = true,
-    buffer = bottom_buf
-  })
+  vim.keymap.set('n', '<CR>', function()
+    filetree.handle_enter("hash", false, git_root, bottom_buf, refresh_bottom_buf, load_entry)
+  end, { noremap = true, silent = true, buffer = bottom_buf })
+
+  vim.keymap.set('n', 'y', function()
+    local section, item = filetree.get_cur_section_item(bottom_buf)
+    local hash = section.hash
+    vim.fn.setreg("+", hash)
+    vim.notify("Copied '" .. hash .. "' to the clipboard")
+  end, { noremap = true, silent = true, buffer = bottom_buf })
 
 end
 

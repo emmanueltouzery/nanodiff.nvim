@@ -171,8 +171,6 @@ local function get_diff_status(git_root)
   end
 
   return {
-    -- TODO update the conflicts count when the files get loaded
-    -- the conflict marker is ^<<<<<<<
     {title = "Conflicts", contents = conflicted_files,
       left_sha = conflict_commits.ours, mid_sha = "disk", right_sha = conflict_commits.theirs, bottom_sha = conflict_commits.base },
     {title = "Changes", contents = changes, left_sha = ":0", right_sha = "disk"}, -- :0 = staged file, so we're looking at unstaged changes
