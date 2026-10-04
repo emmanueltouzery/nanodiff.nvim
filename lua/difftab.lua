@@ -112,11 +112,10 @@ function M.open_diff_tab(sections, git_root)
   left_buf_data.tree_expand_st = {}
 
   local conflicts_section = sections[1]
-  if sections[1].title ~= "Conflicts" then
-    error("Expected conflicts section: " .. sections[1].title)
+  if sections[1].title == "Conflicts" then
+    left_buf_data.conflicts_state = {conflicts = {}}
+    conflicts.register_watchers(conflicts_section, left_buf_data.conflicts_state, function() refresh_left_buf(left_buf) end)
   end
-  left_buf_data.conflicts_state = {conflicts = {}}
-  conflicts.register_watchers(conflicts_section, left_buf_data.conflicts_state, function() refresh_left_buf(left_buf) end)
 
   refresh_left_buf(left_buf)
 

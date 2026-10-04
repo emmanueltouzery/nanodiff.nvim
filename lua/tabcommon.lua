@@ -1,6 +1,5 @@
--- TODO duplicated. try to share in some "git.lua" file
 local async = vim.async
-local async_sys = async.wrap(3, vim.system)
+local io_helpers = require("io_helpers")
 
 local M = {}
 
@@ -40,7 +39,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   else
     async.run(function()
       -- gsub: remove extra newline from git show
-      local contents = async_sys({"git", "show", sha .. ":" .. path}, {cwd = git_root}).stdout:gsub("\r?\n$", "")
+      local contents = io_helpers.run_cmd({"git", "show", sha .. ":" .. path}, {cwd = git_root}):gsub("\r?\n$", "")
       vim.schedule(function()
         local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(contents, "[\r\n]"))

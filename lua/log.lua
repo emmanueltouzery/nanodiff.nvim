@@ -1,7 +1,7 @@
 local async = vim.async
-local async_sys = async.wrap(3, vim.system) -- TODO share instead of c/p
 
 local logtab = require('logtab')
+local io_helpers = require('io_helpers')
 
 local M = {}
 
@@ -79,15 +79,9 @@ local function display_log_cmd(cmd_fn)
     kind='progress', status='running', title='Git log', source='nanodiff', percent = nil
   })
   local ok, git_log = async.run(function()
-    local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}).stdout)
+    local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local cmd = cmd_fn(git_root)
-    local obj = async_sys(cmd, { text = true })
-    local git_log = {}
-    if obj.code ~= 0 then
-      error("Git error: " .. obj.stderr)
-    else
-      return parse_git_log_output(obj.stdout)
-    end
+    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true }))
   end):pwait()
   local status = 'failed'
   if ok then

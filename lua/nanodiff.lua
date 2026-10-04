@@ -2,8 +2,7 @@ local async = vim.async
 local difftab = require('difftab')
 local log = require('log')
 local conflicts = require('conflicts')
-
-local async_sys = async.wrap(3, vim.system)
+local io_helpers = require('io_helpers')
 
 local M = {
   log = log.display_log,
@@ -92,25 +91,17 @@ local function count_file_lines(filepath)
 end
 
 local function get_diff_status(git_root)
-  local commit_output = async_sys({"git", "rev-parse", "HEAD"}, {cwd = git_root})
-  if commit_output.code ~= 0 then
-    error("git rev-parse error: " .. commit_output.stderr)
-  end
-  local current_commit =  vim.trim(commit_output.stdout)
+  local current_commit = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "HEAD"}, {cwd = git_root}))
 
   -- need to fetch the per-file diffstats separately
-  local diff_numstat_output = async_sys({"git", "diff", "HEAD", "--numstat"})
-  if diff_numstat_output.code ~= 0 then
-    error("git diff error: " .. diff_numstat_output.stderr)
-  end
-  local diff_numstat = parse_diff_numstat(diff_numstat_output.stdout)
+  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({"git", "diff", "HEAD", "--numstat"}))
 
-  local output = async_sys({"git", "status", "--porcelain=v2"}, {cwd = git_root})
+  local output = io_helpers.run_cmd({"git", "status", "--porcelain=v2"}, {cwd = git_root})
 
   local staged = {}
   local changes = {}
 
-  for line in output.stdout:gmatch("[^\r\n]+") do
+  for line in output:gmatch("[^\r\n]+") do
     local prefix = line:sub(1, 1)
 
     if prefix == "1" then
@@ -169,10 +160,10 @@ local function get_diff_status(git_root)
   end
 
   -- need to fetch conflicts separately
-  local conflicts_output = async_sys({"git", "diff", "--name-only", "--diff-filter=U"})
+  local conflicts_output = io_helpers.run_cmd({"git", "diff", "--name-only", "--diff-filter=U"})
   local conflicted_files = vim.tbl_map(
     function(p) return { path = p, status = "U" } end,
-    vim.split(conflicts_output.stdout, '\n', { trimempty = true })
+    vim.split(conflicts_output, '\n', { trimempty = true })
   )
   local conflict_commits = {ours = "nil", theirs = "nil", base = "nil"}
   if #conflicted_files > 0 then
@@ -194,7 +185,7 @@ function M.status()
     kind='progress', status='running', title='Git status', source='nanodiff', percent = nil
   })
   local status = async.run(function()
-    local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}).stdout)
+    local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     return get_diff_status(git_root)
   end):wait()
   vim.api.nvim_echo({{'Done'}}, true, {
@@ -204,7 +195,7 @@ function M.status()
 end
 
 local function get_diff_revspec(git_root, revspec)
-  local commits_stdout = async_sys({"git", "rev-parse", "--revs-only", "--no-flags", revspec}, {text = true, cwd = git_root}).stdout
+  local commits_stdout = io_helpers.run_cmd({"git", "rev-parse", "--revs-only", "--no-flags", revspec}, {text = true, cwd = git_root})
   local right_sha, left_sha = unpack(vim.split(commits_stdout:gsub("%^", ""), "%s+", { trimempty = true }))
   if left_sha == nil then
     -- git rev-parse resolved a single sha. that means the revspec contained a single sha,
@@ -216,17 +207,9 @@ local function get_diff_revspec(git_root, revspec)
   end
 
   -- need to fetch the per-file diffstats separately
-  local diff_numstat_output = async_sys({"git", "diff", "--numstat", revspec})
-  if diff_numstat_output.code ~= 0 then
-    error("git diff --numstat error: " .. diff_numstat_output.stderr)
-  end
-  local diff_numstat = parse_diff_numstat(diff_numstat_output.stdout)
+  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({"git", "diff", "--numstat", revspec}))
 
-  local output_obj = async_sys({"git", "diff", "--name-status", "-M", revspec}, {text = true, cwd = git_root})
-  if output_obj.code ~= 0 then
-    error("git diff error: " .. output_obj.stderr)
-  end
-  local output = vim.trim(output_obj.stdout)
+  local output = vim.trim(io_helpers.run_cmd({"git", "diff", "--name-status", "-M", revspec}, {text = true, cwd = git_root}))
 
   local results = {}
 
@@ -276,7 +259,7 @@ end
 
 local function revspec_display_commits_popup(git_root, left_buf, revspec)
   local git_commits = async.run(function()
-    return async_sys({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root}).stdout
+    return io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root})
   end):wait()
   local git_commits_lines = vim.split(git_commits, "[\r\n]")
 
@@ -315,7 +298,7 @@ function M.revspec(revspec)
     kind='progress', status='running', title='Git revspec', source='nanodiff', percent = nil
   })
   local ok, contents = async.run(function()
-    local git_root = vim.trim(async_sys({"git", "rev-parse", "--show-toplevel"}, {text = true}).stdout)
+    local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
     return get_diff_revspec(git_root, revspec)
   end):pwait()
   local status = 'failed'
