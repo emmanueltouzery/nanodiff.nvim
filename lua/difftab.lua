@@ -47,7 +47,7 @@ local function load_entry(left_buf, git_root, section, item)
     end
     tabcommon.win_load_buf(git_root, left_buf_data.diff3_win, item.path, section.mid_sha)
   elseif left_buf_data.diff3_win then
-    vim.api.nvim_win_close(left_buf_data.diff3_win)
+    vim.api.nvim_win_close(left_buf_data.diff3_win, false)
     left_buf_data.diff3_win = nil
   end
   if section.bottom_sha then
@@ -57,6 +57,8 @@ local function load_entry(left_buf, git_root, section, item)
       -- Save buffers of diff2 and diff3
       local buf2 = vim.api.nvim_win_get_buf(left_buf_data.diff2_win)
       local buf3 = vim.api.nvim_win_get_buf(left_buf_data.diff3_win)
+      vim.bo[buf2].bufhidden = "hide"
+      vim.bo[buf3].bufhidden = "hide"
       vim.api.nvim_win_close(left_buf_data.diff2_win, false)
       vim.api.nvim_win_close(left_buf_data.diff3_win, false)
 
@@ -75,10 +77,12 @@ local function load_entry(left_buf, git_root, section, item)
         split = "right",
         win = left_buf_data.diff3_win,
       })
+      vim.bo[buf2].bufhidden = "wipe"
+      vim.bo[buf3].bufhidden = "wipe"
     end
     tabcommon.win_load_buf(git_root, left_buf_data.diff4_win, item.path, section.bottom_sha)
   elseif left_buf_data.diff4_win then
-    vim.api.nvim_win_close(left_buf_data.diff4_win)
+    vim.api.nvim_win_close(left_buf_data.diff4_win, false)
     left_buf_data.diff4_win = nil
   end
   tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
