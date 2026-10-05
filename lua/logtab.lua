@@ -1,6 +1,8 @@
 local filetree = require('filetree')
 local tabcommon = require('tabcommon')
 local bufdata = require('bufdata')
+local log_filter = require('log_filter')
+local async = vim.async
 
 local M = {}
 
@@ -51,8 +53,12 @@ local function format_commit_summary(commit)
 end
 
 local function refresh_bottom_buf(bottom_buf)
-  local lines = {}
   local bottom_buf_data = bufdata.get_data(bottom_buf)
+  local lines = {
+    { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
+    {},
+    { {"Log view ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
+  }
   bottom_buf_data.line_to_item = {}
   for _, commit in ipairs(bottom_buf_data.log) do
     local selected_path = nil
@@ -79,7 +85,7 @@ local function load_entry(bottom_buf, git_root, commit, item)
   refresh_bottom_buf(bottom_buf)
 end
 
-function M.open_log_tab(log, git_root)
+function M.open_log_tab(log, git_root, cmd_fn)
   vim.cmd("tabnew")
   local bottom_buf = vim.api.nvim_win_get_buf(0)
 
@@ -153,6 +159,17 @@ function M.open_log_tab(log, git_root)
     vim.notify("Copied '" .. hash .. "' to the clipboard")
   end, { noremap = true, silent = true, buffer = bottom_buf })
 
+  vim.keymap.set('n', 'g!', function()
+    log_filter.open_filtering_modal(bottom_buf, function()
+      local ok, git_log = async.run(function()
+        return cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
+      end):pwait()
+      if ok then
+        bottom_buf_data.log = git_log
+        refresh_bottom_buf(bottom_buf)
+      end
+    end)
+  end, { noremap = true, silent = true, buffer = bottom_buf })
 end
 
 return M

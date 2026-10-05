@@ -284,11 +284,7 @@ local function revspec_display_commits_popup(git_root, left_buf, revspec)
   local w = vim.api.nvim_open_win(bufnr, true, opts)
   -- Adds a 1-character left margin inside the buffer area
   vim.wo[w].foldcolumn = "1"
-  vim.api.nvim_win_call(w, function()
-    vim.keymap.set({'n', 'v'}, 'q', function()
-      vim.api.nvim_win_close(vim.api.nvim_get_current_win(), false)
-    end, {buffer = true})
-  end)
+  vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
 end
 
 function M.revspec(revspec)
