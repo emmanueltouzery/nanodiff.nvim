@@ -14,6 +14,16 @@ local function win_set_diff(winnr)
 end
 
 local function win_load_disk_file(winnr, path)
+  local path = async.run(function()
+    -- the path may be a git path, but maybe neovim's current folder is not
+    -- the repo's root
+    if vim.uv.fs_access(path, "R") then
+      return path
+    else
+      local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
+      return vim.fs.joinpath(git_root, path)
+    end
+  end):wait()
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   if not vim.api.nvim_buf_is_loaded(bufnr) then
     -- we know it's our buffer since it's not loaded.

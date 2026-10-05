@@ -38,7 +38,7 @@ function M.render_lines(bufnr, lines)
     end
   end
 
-  vim.api.nvim_buf_clear_namespace(0, ns_hl_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_hl_id, 0, -1)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines_text)
 
   for _, item in ipairs(highlights) do

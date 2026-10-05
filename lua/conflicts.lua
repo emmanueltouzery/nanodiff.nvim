@@ -11,7 +11,7 @@ local augroup = vim.api.nvim_create_augroup("ConflictListeners", { clear = true 
 -- not be the simple .git/<file>
 local function get_git_path(git_root, file)
   local output = io_helpers.run_cmd({"git", "rev-parse", "--git-path", file}, {cwd = git_root})
-  return vim.trim(output)
+  return vim.fs.joinpath(git_root, vim.trim(output))
 end
 
 local function ref_to_sha(git_root, ref)
@@ -27,27 +27,28 @@ function M.get_conflict_commits(git_root)
     }
   elseif vim.uv.fs_access(get_git_path(git_root, "CHERRY_PICK_HEAD"), "R") then
     return {
-      ours = ref_to_sha("HEAD"),
-      theirs = ref_to_sha("CHERRY_PICK_HEAD"),
-      base = ref_to_sha("CHERRY_PICK_HEAD~1")
+      ours = ref_to_sha(git_root, "HEAD"),
+      theirs = ref_to_sha(git_root, "CHERRY_PICK_HEAD"),
+      base = ref_to_sha(git_root, "CHERRY_PICK_HEAD~1")
     }
   elseif vim.uv.fs_access(get_git_path(git_root, "REVERT_HEAD"), "R") then
     return {
-      ours = ref_to_sha("HEAD"),
-      theirs = ref_to_sha("REVERT_HEAD~1"),
-      base = ref_to_sha("REVERT_HEAD")
+      ours = ref_to_sha(git_root, "HEAD"),
+      theirs = ref_to_sha(git_root, "REVERT_HEAD~1"),
+      base = ref_to_sha(git_root, "REVERT_HEAD")
     }
   else
     local rebase_sha = get_git_path(git_root, "rebase-merge/stopped-sha")
-    if vim.uv.fs_access(rebase_sha, "R") == 1 then
-      local sha = vim.trim(vim.io.open(rebase_sha[1]):read("*a"))
+    if vim.uv.fs_access(rebase_sha, "R") then
+      local sha = vim.trim(io.open(rebase_sha):read("*a"))
       return {
-        ours = ref_to_sha("HEAD"),
+        ours = ref_to_sha(git_root, "HEAD"),
         theirs = sha,
         base = sha .. "~1"
       }
+    else
+      error("git conflict get commits: no branch matched")
     end
-    error("git conflict get commits: no branch matched")
   end
 end
 
