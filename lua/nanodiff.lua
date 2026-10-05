@@ -179,17 +179,13 @@ local function get_diff_status(git_root)
 end
 
 function M.status()
-  local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
-    kind='progress', status='running', title='Git status', source='nanodiff', percent = nil
-  })
-  local status = async.run(function()
+  io_helpers.async_progress("Loading git status", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
-    return get_diff_status(git_root)
-  end):wait()
-  vim.api.nvim_echo({{'Done'}}, true, {
-    id = msg_id, kind='progress', status='success', source='nanodiff', title='Git status'
-  })
-  difftab.open_diff_tab(status, git_root)
+    local status = get_diff_status(git_root)
+    vim.schedule(function()
+      difftab.open_diff_tab(status, git_root)
+    end)
+  end)
 end
 
 local function get_diff_revspec(git_root, revspec)
@@ -256,59 +252,55 @@ local function get_diff_revspec(git_root, revspec)
 end
 
 local function revspec_display_commits_popup(git_root, left_buf, revspec)
-  local git_commits = async.run(function()
-    return io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root})
-  end):wait()
-  local git_commits_lines = vim.split(git_commits, "[\r\n]")
+  io_helpers.async_progress("Loading git revspec log", function()
+    local git_commits = io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root})
+    vim.schedule(function()
+      local git_commits_lines = vim.split(git_commits, "[\r\n]")
 
-  local bufnr = vim.api.nvim_create_buf(false, false)
-  vim.bo[bufnr].filetype = "git"
-  vim.bo[bufnr].bufhidden = "wipe"
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
-  local width = vim.api.nvim_get_option("columns")
-  local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
-  local win_height = pref_height or 50
-  if win_height > height then
-    win_height = height
-  end
+      local bufnr = vim.api.nvim_create_buf(false, false)
+      vim.bo[bufnr].filetype = "git"
+      vim.bo[bufnr].bufhidden = "wipe"
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
+      vim.bo[bufnr].readonly = true
+      vim.bo[bufnr].modified = false
+      vim.bo[bufnr].modifiable = false
+      local width = vim.api.nvim_get_option("columns")
+      local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
+      local win_height = pref_height or 50
+      if win_height > height then
+        win_height = height
+      end
 
-  local opts = {
-    style = "minimal",
-    border = "rounded",
-    relative = "editor",
-    row = (height - win_height) / 2,
-    col = (width - 100) / 2,
-    width = 100,
-    height = win_height,
-  }
-  local w = vim.api.nvim_open_win(bufnr, true, opts)
-  -- Adds a 1-character left margin inside the buffer area
-  vim.wo[w].foldcolumn = "1"
-  vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
+      local opts = {
+        style = "minimal",
+        border = "rounded",
+        relative = "editor",
+        row = (height - win_height) / 2,
+        col = (width - 100) / 2,
+        width = 100,
+        height = win_height,
+      }
+      local w = vim.api.nvim_open_win(bufnr, true, opts)
+      -- Adds a 1-character left margin inside the buffer area
+      vim.wo[w].foldcolumn = "1"
+      vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
+    end)
+  end)
 end
 
 function M.revspec(revspec)
-  local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
-    kind='progress', status='running', title='Git revspec', source='nanodiff', percent = nil
-  })
-  local ok, contents = async.run(function()
+  io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
-    return get_diff_revspec(git_root, revspec)
-  end):pwait()
-  local status = 'failed'
-  if ok then
-    status = 'success'
-    local left_buf = difftab.open_diff_tab(contents, git_root)
+    local contents = get_diff_revspec(git_root, revspec)
+    vim.schedule(function()
+      local left_buf = difftab.open_diff_tab(contents, git_root)
 
-    vim.keymap.set('n', 'L', function() revspec_display_commits_popup(git_root, left_buf, revspec) end, {
-      noremap = true,
-      silent = true,
-      buffer = left_buf
-    })
-  end
-  vim.api.nvim_echo({{'Done'}}, true, {
-    id = msg_id, kind='progress', status=status, source='nanodiff', title='Git revspec'
-  })
+      vim.keymap.set(
+        'n', 'L', function() revspec_display_commits_popup(git_root, left_buf, revspec) end,
+        { noremap = true, silent = true, buffer = left_buf }
+      )
+    end)
+  end)
 end
 
 return M

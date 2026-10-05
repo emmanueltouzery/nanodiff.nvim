@@ -2,6 +2,7 @@ local filetree = require('filetree')
 local tabcommon = require('tabcommon')
 local bufdata = require('bufdata')
 local log_filter = require('log_filter')
+local io_helpers = require('io_helpers')
 local async = vim.async
 
 local M = {}
@@ -161,13 +162,13 @@ function M.open_log_tab(log, git_root, cmd_fn)
 
   vim.keymap.set('n', 'g!', function()
     log_filter.open_filtering_modal(bottom_buf, function()
-      local ok, git_log = async.run(function()
-        return cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
-      end):pwait()
-      if ok then
-        bottom_buf_data.log = git_log
-        refresh_bottom_buf(bottom_buf)
-      end
+      io_helpers.async_progress("Refreshing log", function()
+        local git_log = cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
+        vim.schedule(function()
+          bottom_buf_data.log = git_log
+          refresh_bottom_buf(bottom_buf)
+        end)
+      end)
     end)
   end, { noremap = true, silent = true, buffer = bottom_buf })
 end

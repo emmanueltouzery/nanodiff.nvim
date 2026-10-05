@@ -52,6 +52,7 @@ function M.open_filtering_modal(bottom_buf, refresh_bottom_buf)
   for _, opt in ipairs(options) do
     vim.keymap.set('n', opt[1], function()
       vim.ui.input({ prompt = opt[2], scope = 'window' }, function(v)
+        if v == nil then return end
         local bottom_buf_data = bufdata.get_data(bottom_buf)
         if v == "" then
           bottom_buf_data.search_settings[opt[1]] = nil

@@ -75,21 +75,13 @@ local function parse_git_log_output(stdout)
 end
 
 local function display_log_cmd(cmd_fn)
-  local msg_id = vim.api.nvim_echo({{'Loading...'}}, true, {
-    kind='progress', status='running', title='Git log', source='nanodiff', percent = nil
-  })
-  local ok, git_log = async.run(function()
+  io_helpers.async_progress("Loading git log", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
-    return cmd_fn(git_root)
-  end):pwait()
-  local status = 'failed'
-  if ok then
-    status = 'success'
-    logtab.open_log_tab(git_log, git_root, cmd_fn)
-  end
-  vim.api.nvim_echo({{'Done'}}, true, {
-    id = msg_id, kind='progress', status=status, source='nanodiff', title='Git log'
-  })
+    local git_log = cmd_fn(git_root)
+    vim.schedule(function()
+      logtab.open_log_tab(git_log, git_root, cmd_fn)
+    end)
+  end)
 end
 
 function M.display_log(single_file_path)
@@ -122,7 +114,7 @@ end
 function M.display_stashes()
   display_log_cmd(function(git_root, extra_params)
     local cmd = vim.iter({
-      "git", "-P",
+      { "git", "-P",
       "-c", "gc.auto=0",
       "-c", "core.quotePath=false",
       "log",
@@ -133,7 +125,7 @@ function M.display_stashes()
       "--numstat", "--raw",
       "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
       "refs/stash"
-    }):flatten():totable()
+    }}):flatten():totable()
     return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true }))
   end)
 end

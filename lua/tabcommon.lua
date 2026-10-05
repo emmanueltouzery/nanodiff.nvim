@@ -14,30 +14,30 @@ local function win_set_diff(winnr)
 end
 
 local function win_load_disk_file(winnr, path)
-  local path = async.run(function()
+  async.run(function()
     -- the path may be a git path, but maybe neovim's current folder is not
     -- the repo's root
-    if vim.uv.fs_access(path, "R") then
-      return path
-    else
+    if not vim.uv.fs_access(path, "R") then
       local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
-      return vim.fs.joinpath(git_root, path)
+      path = vim.fs.joinpath(git_root, path)
     end
-  end):wait()
-  local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
-  if not vim.api.nvim_buf_is_loaded(bufnr) then
-    -- we know it's our buffer since it's not loaded.
-    -- wouldn't want to do that on the user's buffers
-    vim.bo[bufnr].bufhidden = "wipe"
-  end
-  vim.fn.bufload(bufnr)
-  vim.bo[bufnr].buflisted = true
-  vim.api.nvim_win_set_buf(winnr, bufnr)
-  win_set_diff(winnr)
-  vim.api.nvim_exec_autocmds("User", {
-    pattern = "NanodiffDiskBufferLoaded",
-    data = { path = path },
-  })
+    vim.schedule(function()
+      local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
+      if not vim.api.nvim_buf_is_loaded(bufnr) then
+        -- we know it's our buffer since it's not loaded.
+        -- wouldn't want to do that on the user's buffers
+        vim.bo[bufnr].bufhidden = "wipe"
+      end
+      vim.fn.bufload(bufnr)
+      vim.bo[bufnr].buflisted = true
+      vim.api.nvim_win_set_buf(winnr, bufnr)
+      win_set_diff(winnr)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "NanodiffDiskBufferLoaded",
+        data = { path = path },
+      })
+    end)
+  end):raise_on_error()
 end
 
 local function win_load_sha_file(winnr, git_root, path, sha)
