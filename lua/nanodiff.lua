@@ -183,7 +183,7 @@ function M.status()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local status = get_diff_status(git_root)
     vim.schedule(function()
-      difftab.open_diff_tab(status, git_root)
+      difftab.open_diff_tab(status, git_root, get_diff_status)
     end)
   end)
 end
@@ -293,7 +293,7 @@ function M.revspec(revspec)
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
     local contents = get_diff_revspec(git_root, revspec)
     vim.schedule(function()
-      local left_buf = difftab.open_diff_tab(contents, git_root)
+      local left_buf = difftab.open_diff_tab(contents, git_root, nil)
 
       vim.keymap.set(
         'n', 'L', function() revspec_display_commits_popup(git_root, left_buf, revspec) end,

@@ -1,7 +1,10 @@
+local async = vim.async
+
 local filetree = require('filetree')
 local tabcommon = require('tabcommon')
 local bufdata = require('bufdata')
 local conflicts = require('conflicts')
+local index_watcher = require('index_watcher')
 
 local M = {}
 
@@ -96,7 +99,7 @@ local function left_buf_handle_enter(git_root, bufnr)
   filetree.handle_enter("title", true, git_root, bufnr, refresh_left_buf, load_entry)
 end
 
-function M.open_diff_tab(sections, git_root)
+function M.open_diff_tab(sections, git_root, reload_index)
   vim.cmd("tabnew")
 
   vim.wo.spell = false
@@ -115,6 +118,18 @@ function M.open_diff_tab(sections, git_root)
   if sections[1].title == "Conflicts" then
     left_buf_data.conflicts_state = {conflicts = {}}
     conflicts.register_watchers(conflicts_section, left_buf_data.conflicts_state, function() refresh_left_buf(left_buf) end)
+  end
+
+  if reload_index then
+    index_watcher.setup_index_watch(git_root, function()
+      async.run(function()
+        local sections = reload_index(git_root)
+        vim.schedule(function()
+          left_buf_data.sections = sections
+          refresh_left_buf(left_buf)
+        end)
+      end):raise_on_error()
+    end)
   end
 
   refresh_left_buf(left_buf)
