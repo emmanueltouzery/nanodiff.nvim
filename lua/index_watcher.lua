@@ -1,6 +1,7 @@
 -- inspired by mini.diff's index watcher
 local async = vim.async
 
+local bufdata = require("bufdata")
 local io_helpers = require("io_helpers")
 
 local M = {}
@@ -16,7 +17,7 @@ end
 -- via "create fresh 'index.lock' file, apply modifications, change file name
 -- to 'index'". Hence watch the whole '.git' (first level) and react only if
 -- change was in 'index' file.
-M.setup_index_watch = function(git_path, index_changed_cb)
+M.setup_index_watch = function(git_path, bufnr, index_changed_cb)
   async.run(function()
     local git_dir_path = M.get_git_path(git_path, ".")
     local buf_fs_event, timer = vim.loop.new_fs_event(), vim.loop.new_timer()
@@ -28,6 +29,10 @@ M.setup_index_watch = function(git_path, index_changed_cb)
       timer:start(50, 0, index_changed_cb)
     end
     buf_fs_event:start(git_dir_path, { recursive = false }, watch_index)
+    bufdata.add_cleanup(bufnr, function()
+      vim.loop.timer_stop(timer)
+      vim.loop.fs_event_stop(buf_fs_event)
+    end)
   end):raise_on_error()
 end
 

@@ -121,7 +121,7 @@ function M.open_diff_tab(sections, git_root, reload_index)
   end
 
   if reload_index then
-    index_watcher.setup_index_watch(git_root, function()
+    index_watcher.setup_index_watch(git_root, left_buf, function()
       async.run(function()
         local sections = reload_index(git_root)
         vim.schedule(function()
