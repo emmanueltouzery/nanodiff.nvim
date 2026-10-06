@@ -7,7 +7,7 @@ local async = vim.async
 
 local M = {}
 
-local function format_commit_summary(commit)
+local function format_commit_summary(commit, has_selection)
   local file_count = #commit.files
   local total_added = 0
   local total_deleted = 0
@@ -47,7 +47,7 @@ local function format_commit_summary(commit)
     {"| ", "DiffviewNonText"},
     {short_hash, "DiffviewHash"},
     {refs_str, "DiffviewReference"},
-    {" " .. commit.subject, "DiffviewFilePanelSelected"},
+    {" " .. commit.subject, has_selection and "DiffviewFilePanelSelected" or nil},
     {" " .. commit.author_name, "DiffviewFilePanelPath"},
     {", " .. commit.relative_date,  "DiffviewFilePanelPath"},
   }
@@ -68,7 +68,7 @@ local function refresh_bottom_buf(bottom_buf)
     end
     filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
-      format_commit_summary(commit), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
+      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
     )
   end
   vim.bo[bottom_buf].modifiable = true
