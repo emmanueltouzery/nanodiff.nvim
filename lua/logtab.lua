@@ -58,7 +58,7 @@ local function refresh_bottom_buf(bottom_buf)
   local lines = {
     { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
     {},
-    { {"Log view ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
+    { {bottom_buf_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
   }
   bottom_buf_data.line_to_item = {}
   for _, commit in ipairs(bottom_buf_data.log) do
@@ -86,7 +86,7 @@ local function load_entry(bottom_buf, git_root, commit, item)
   refresh_bottom_buf(bottom_buf)
 end
 
-function M.open_log_tab(log, git_root, cmd_fn)
+function M.open_log_tab(title, log, git_root, cmd_fn)
   vim.cmd("tabnew")
   local bottom_buf = vim.api.nvim_win_get_buf(0)
 
@@ -97,6 +97,7 @@ function M.open_log_tab(log, git_root, cmd_fn)
   vim.bo[bottom_buf].swapfile = false
 
   local bottom_buf_data = bufdata.get_data(bottom_buf)
+  bottom_buf_data.title = title
   bottom_buf_data.log = log
   bottom_buf_data.tree_expand_st = {}
 

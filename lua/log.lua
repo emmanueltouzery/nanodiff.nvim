@@ -74,12 +74,12 @@ local function parse_git_log_output(stdout)
   return commits
 end
 
-local function display_log_cmd(cmd_fn)
+local function display_log_cmd(title, cmd_fn)
   io_helpers.async_progress("Loading git log", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local git_log = cmd_fn(git_root)
     vim.schedule(function()
-      logtab.open_log_tab(git_log, git_root, cmd_fn)
+      logtab.open_log_tab(title, git_log, git_root, cmd_fn)
     end)
   end)
 end
@@ -88,7 +88,7 @@ function M.display_log(single_file_path)
   if type(single_file_path) == "number" then -- buffer number, often 0
     single_file_path = vim.api.nvim_buf_get_name(single_file_path)
   end
-  display_log_cmd(function(git_root, extra_params)
+  display_log_cmd("Log view", function(git_root, extra_params)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
     end
@@ -112,7 +112,7 @@ function M.display_log(single_file_path)
 end
 
 function M.display_stashes()
-  display_log_cmd(function(git_root, extra_params)
+  display_log_cmd("Stashes", function(git_root, extra_params)
     local cmd = vim.iter({
       { "git", "-P",
       "-c", "gc.auto=0",
