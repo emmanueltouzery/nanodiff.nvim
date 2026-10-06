@@ -242,7 +242,7 @@ local function get_diff_revspec(git_root, revspec)
     end
   end
 
-  return {{
+  return revspec, {{
     title = "Changes",
     contents = status,
     left_sha = left_sha,
@@ -291,7 +291,7 @@ end
 function M.revspec(revspec)
   io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
-    local contents = get_diff_revspec(git_root, revspec)
+    local revspec, contents = get_diff_revspec(git_root, revspec)
     vim.schedule(function()
       local left_buf = difftab.open_diff_tab(contents, git_root, nil)
 
