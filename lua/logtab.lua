@@ -95,6 +95,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn)
   vim.bo[bottom_buf].buftype = "nofile"
   vim.bo[bottom_buf].bufhidden = "wipe"
   vim.bo[bottom_buf].swapfile = false
+  vim.bo[bottom_buf].filetype = "NanodiffFiles"
 
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.title = title
@@ -134,6 +135,8 @@ function M.open_log_tab(title, log, git_root, cmd_fn)
   vim.wo[bottom_win].signcolumn = "no"
   vim.wo[bottom_win].wrap = false
 
+  vim.api.nvim_set_current_win(bottom_win)
+  vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
   -- display the first entry immediately
   if #log > 0 then
     -- due to sorting in the treeview (including sorting folders first), the first path
@@ -149,6 +152,8 @@ function M.open_log_tab(title, log, git_root, cmd_fn)
     end
     load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_item[lowest_idx_line_to_path])
   end
+
+  vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
 
   vim.keymap.set('n', '<CR>', function()
     filetree.handle_enter("hash", false, git_root, bottom_buf, refresh_bottom_buf, load_entry)

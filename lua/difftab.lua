@@ -110,6 +110,7 @@ function M.open_diff_tab(sections, git_root, reload_index)
   vim.bo[left_buf].buftype = "nofile"
   vim.bo[left_buf].bufhidden = "wipe"
   vim.bo[left_buf].swapfile = false
+  vim.bo[left_buf].filetype = "NanodiffFileHistory"
 
   left_buf_data.sections = sections
   left_buf_data.tree_expand_st = {}
@@ -162,6 +163,8 @@ function M.open_diff_tab(sections, git_root, reload_index)
   vim.wo[left_win].signcolumn = "no"
   vim.wo[left_win].wrap = false
 
+  vim.api.nvim_set_current_win(left_win)
+  vim.api.nvim_win_set_cursor(left_win, { 1, 0 })
   -- display the first entry immediately
   local first_nonempty_section = vim.iter(sections):find(function(s) return #s.contents > 0 end)
   if first_nonempty_section then
@@ -180,6 +183,8 @@ function M.open_diff_tab(sections, git_root, reload_index)
       left_buf, git_root, first_nonempty_section,
       left_buf_data.line_to_item[lowest_idx_line_to_path])
   end
+
+  vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
 
   vim.keymap.set('n', '<CR>', function() left_buf_handle_enter(git_root, left_buf) end, {
     noremap = true,
