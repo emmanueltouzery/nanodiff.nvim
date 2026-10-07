@@ -164,10 +164,12 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
           {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.path .. " ", path_hl},
-          {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"},
-          {" ", nil},
-          {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"},
         }
+        if item.added ~= nil or item.deleted ~= nil then
+          table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"})
+          table.insert(line_info, {" ", nil})
+          table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"})
+        end
       end
       line_to_item[#lines+1] = {type = "path", path = item_full_path}
       if item.left_sha then

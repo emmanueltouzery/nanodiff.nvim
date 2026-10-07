@@ -9,37 +9,6 @@ local M = {
   stashes = log.display_stashes,
 }
 
-local fs_open = async.wrap(4, vim.uv.fs_open)  -- fs_open(path, flags, mode, cb)
-local fs_fstat = async.wrap(2, vim.uv.fs_fstat) -- fs_fstat(fd, cb)
-local fs_read = async.wrap(4, vim.uv.fs_read)  -- fs_read(fd, size, offset, cb)
-local fs_close = async.wrap(2, vim.uv.fs_close) -- fs_close(fd, cb)
-
-local function count_lines_async(filepath)
-  local err, fd = fs_open(filepath, "r", 438)
-  if err or not fd then return 0 end
-
-  -- 2. Stat (to get file size)
-  local err_stat, stat = fs_fstat(fd)
-  if err_stat or not stat or stat.size == 0 then
-    fs_close(fd)
-    return 0
-  end
-
-  -- 3. Read content
-  local err_read, content = fs_read(fd, stat.size, 0)
-  fs_close(fd)
-
-  if err_read or not content or #content == 0 then return 0 end
-
-  -- 4. Count lines
-  local _, count = content:gsub("\n", "")
-  if content:sub(-1) ~= "\n" then
-    count = count + 1
-  end
-
-  return count
-end
-
 local function get_new_path(path)
   if path:find(" => ") then
     -- Handle grouped renames like "dir/{old => new}/file.lua"
@@ -68,26 +37,6 @@ local function parse_diff_numstat(stdout)
   end
 
   return stats
-end
-
-local function count_file_lines(filepath)
-  local file = io.open(filepath, "rb")
-  if not file then return 0 end
-
-  local content = file:read("*a")
-  file:close()
-
-  if #content == 0 then return 0 end
-
-  -- content:gsub("\n", "") returns (modified_string, count_of_replacements)
-  local _, count = content:gsub("\n", "")
-
-  -- If the file has content but doesn't end with a trailing newline, add 1
-  if content:sub(-1) ~= "\n" then
-    count = count + 1
-  end
-
-  return count
 end
 
 local function get_diff_status(git_root)
@@ -154,7 +103,7 @@ local function get_diff_status(git_root)
       -- Untracked files: "? <path>"
       local path = line:match("^%?%s+(.+)$")
       if path then
-        table.insert(changes, { path = path, status = "?", added = count_lines_async(path), deleted = 0, left_sha = "nil" })
+        table.insert(changes, { path = path, status = "?", added = nil, deleted = nil, left_sha = "nil" })
       end
     end
   end
