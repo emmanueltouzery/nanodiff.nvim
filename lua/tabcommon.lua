@@ -94,6 +94,10 @@ function M.win_load_buf(git_root, winnr, path, sha)
   else
     win_load_sha_file(winnr, git_root, path, sha)
   end
+  -- if we don't force the line number to zero, neovim
+  -- might reposition the file at the last-remembered line number
+  -- for that file
+  vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
 end
 
 return M

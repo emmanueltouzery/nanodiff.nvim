@@ -182,7 +182,7 @@ end
 
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
     header, items, selected_path, section_expand_st, section_expand_default)
-  if #items == 0 then return end
+  if #items == 0 and not section_obj.always_show then return end
 
   line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
   table.insert(lines, header)

@@ -81,8 +81,8 @@ end
 local function load_entry(bottom_buf, git_root, commit, item)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.selected_item = {commit = commit.hash, path = item.path}
-  tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, commit.hash .. "^")
-  tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, commit.hash)
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_hash or commit.hash .. "^")
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_hash or commit.hash)
   refresh_bottom_buf(bottom_buf)
 end
 
@@ -151,6 +151,10 @@ function M.open_log_tab(title, log, git_root, cmd_fn)
       end
     end
     load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_item[lowest_idx_line_to_path])
+  else
+    -- no data, display nil buffers
+    load_entry(
+      bottom_buf, git_root, {}, {left_hash = "nil", right_hash = "nil"})
   end
 
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")

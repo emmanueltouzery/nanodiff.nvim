@@ -23,8 +23,8 @@ local function refresh_left_buf(left_buf)
     end
     filetree.add_section(left_buf_data.conflicts_state, section,
       lines, left_buf_data.line_to_item,
-      {{ " " .. section.title, "DiffviewFilePanelTitle" }}, section.contents,
-      selected_path, left_buf_data.tree_expand_st[section.title], true
+      {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} },
+      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true
     )
   end
   left_buf_data.line_to_path = line_to_path
@@ -182,6 +182,10 @@ function M.open_diff_tab(sections, git_root, reload_index)
     load_entry(
       left_buf, git_root, first_nonempty_section,
       left_buf_data.line_to_item[lowest_idx_line_to_path])
+  else
+    -- no data, display nil buffers
+    load_entry(
+      left_buf, git_root, {}, {left_sha = "nil", right_sha = "nil"})
   end
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
