@@ -211,6 +211,10 @@ function M.get_cur_section_item(bufnr)
     end
     section_line = section_line - 1
   end
+  if section_item == nil then
+    -- possible if we put header text before the first section
+    return nil, nil
+  end
   local section = section_item.section_obj
 
   local item = bdata.line_to_item[line]
