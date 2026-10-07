@@ -141,7 +141,7 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
       if item.status == "U" then
         -- git conflict: don't display the +- diffstat, rather the number of conflicts
         line_info = {
-          {string.format("[%s]", item.status), status_hl},
+          {item.status, status_hl},
           {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.path .. " ", path_hl},
@@ -149,7 +149,7 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         }
       elseif item.orig_path then
         line_info = {
-          {string.format("[%s]", item.status), status_hl},
+          {item.status, status_hl},
           {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.orig_path, nil},
@@ -160,7 +160,7 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         }
       else
         line_info = {
-          {string.format("[%s]", item.status), status_hl},
+          {item.status, status_hl},
           {string.format("%s ", prefix), nil},
           {icon .. " ", icon_hl_group},
           {item.path .. " ", path_hl},
