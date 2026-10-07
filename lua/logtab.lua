@@ -49,7 +49,7 @@ local function format_commit_summary(commit, has_selection)
     {refs_str, "DiffviewReference"},
     {" " .. commit.subject, has_selection and "DiffviewFilePanelSelected" or nil},
     {" " .. commit.author_name, "DiffviewFilePanelPath"},
-    {", " .. commit.relative_date,  "DiffviewFilePanelPath"},
+    {", " .. commit.date,  "DiffviewFilePanelPath"},
   }
 end
 

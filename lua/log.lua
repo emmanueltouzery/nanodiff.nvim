@@ -5,7 +5,7 @@ local io_helpers = require('io_helpers')
 
 local M = {}
 
-local function parse_git_log_output(stdout)
+local function parse_git_log_output(stdout, opts)
   local commits = {}
   local current_commit = nil
 
@@ -15,13 +15,17 @@ local function parse_git_log_output(stdout)
       local header = line:sub(2) -- strip \x1e
       local f = vim.split(header, "\x1f", { plain = true })
 
+      local timestamp = tonumber(f[4])
+      local iso_date = f[5]
+      local relative_date = f[6]
+      local date = os.difftime(os.time(), timestamp) > opts.relative_date_cutoff_seconds and iso_date or relative_date
+
       current_commit = {
         hash = f[1],
         parents = vim.split(f[2] or "", " "),
         author_name = f[3],
-        timestamp = tonumber(f[4]),
-        iso_date = f[5],
-        relative_date = f[6],
+        timestamp = timestamp,
+        date = date,
         ref_names = f[7],
         ref_log = f[8],
         subject = f[9],
@@ -84,10 +88,14 @@ local function display_log_cmd(title, cmd_fn)
   end)
 end
 
-function M.display_log(single_file_path)
-  if type(single_file_path) == "number" then -- buffer number, often 0
-    single_file_path = vim.api.nvim_buf_get_name(single_file_path)
+function M.display_log(opts)
+  opts = opts or {}
+  local single_file_path = opts.path
+  local buf = opts.buf
+  if type(buf) == "number" then
+    single_file_path = vim.api.nvim_buf_get_name(buf)
   end
+  opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
   display_log_cmd("Log view", function(git_root, extra_params)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
@@ -107,11 +115,13 @@ function M.display_log(single_file_path)
       table.insert(cmd, "--follow")
     end
     vim.list_extend(cmd, { "--", single_file_path or git_root })
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }))
+    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
   end)
 end
 
-function M.display_stashes()
+function M.display_stashes(opts)
+  opts = opts or {}
+  opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
   display_log_cmd("Stashes", function(git_root, extra_params)
     local cmd = vim.iter({
       { "git", "-P",
@@ -126,7 +136,7 @@ function M.display_stashes()
       "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
       "refs/stash"
     }}):flatten():totable()
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }))
+    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
   end)
 end
 
