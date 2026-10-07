@@ -107,7 +107,7 @@ function M.display_log(single_file_path)
       table.insert(cmd, "--follow")
     end
     vim.list_extend(cmd, { "--", single_file_path or git_root })
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true }))
+    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }))
   end)
 end
 
@@ -126,7 +126,7 @@ function M.display_stashes()
       "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
       "refs/stash"
     }}):flatten():totable()
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true }))
+    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }))
   end)
 end
 
