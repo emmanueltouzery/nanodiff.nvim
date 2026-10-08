@@ -49,10 +49,15 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   else
     async.run(function()
       -- gsub: remove extra newline from git show
-      local contents = io_helpers.run_cmd({"git", "show", sha .. ":" .. path}, {cwd = git_root}):gsub("\r?\n$", "")
+      local contents = io_helpers.run_cmd({"git", "show", sha .. ":" .. path}, {cwd = git_root})
+        :gsub("\r\n$", ""):gsub("\n$", ""):gsub("\r$", "") -- remove final line ending
+
+      contents = contents:gsub("\r\n", "\n"):gsub("\r", "\n") -- normalize to \n
+      local lines = vim.split(contents, "\n", { plain = true })
+
       vim.schedule(function()
         local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(contents, "[\r\n]"))
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
         vim.api.nvim_buf_set_name(bufnr, bufname)
 
