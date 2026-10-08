@@ -53,7 +53,7 @@ local function format_commit_summary(commit, has_selection)
   }
 end
 
-local function refresh_bottom_buf(bottom_buf)
+local function refresh_bottom_buf(bottom_buf, scroll_win)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   local lines = {
     { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
@@ -61,32 +61,39 @@ local function refresh_bottom_buf(bottom_buf)
     { {bottom_buf_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
   }
   bottom_buf_data.line_to_item = {}
+  local selection_line = nil
   for _, commit in ipairs(bottom_buf_data.log) do
     local selected_path = nil
-    if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.commit == commit.hash then
+    if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.section == commit.hash then
       selected_path = bottom_buf_data.selected_item.path
     end
-    filetree.add_section(nil, commit,
+    local sl = filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
       format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
     )
+    if sl and selection_line == nil then
+      selection_line = sl
+    end
   end
   vim.bo[bottom_buf].modifiable = true
   vim.bo[bottom_buf].readonly = false
   filetree.render_lines(bottom_buf, lines)
   vim.bo[bottom_buf].modifiable = false
   vim.bo[bottom_buf].readonly = true
+  if scroll_win and selection_line then
+    tabcommon.ensure_visible_centered(scroll_win, selection_line)
+  end
 end
 
 local function load_entry(bottom_buf, git_root, commit, item)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
-  bottom_buf_data.selected_item = {commit = commit.hash, path = item.path}
+  bottom_buf_data.selected_item = {section = commit.hash, path = item.path}
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_hash or commit.hash .. "^")
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_hash or commit.hash)
   refresh_bottom_buf(bottom_buf)
 end
 
-function M.open_log_tab(title, log, git_root, cmd_fn)
+function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.cmd("tabnew")
   local bottom_buf = vim.api.nvim_win_get_buf(0)
 
@@ -181,6 +188,27 @@ function M.open_log_tab(title, log, git_root, cmd_fn)
       end)
     end)
   end, { noremap = true, silent = true, buffer = bottom_buf })
+
+  if opts.shortcuts.fwd then
+    vim.keymap.set('n', opts.shortcuts.bwd, function()
+      vim.api.nvim_win_call(diff1_win, function()
+        vim.cmd("normal! " .. vim.keycode("<C-b>"))
+      end)
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+
+    vim.keymap.set('n', opts.shortcuts.fwd, function()
+      vim.api.nvim_win_call(diff1_win, function()
+        vim.cmd("normal! " .. vim.keycode("<C-f>"))
+      end)
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+
+    vim.keymap.set('n', opts.shortcuts.prev_file, function()
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+
+    vim.keymap.set('n', opts.shortcuts.next_file, function()
+      filetree.next_file("hash", "files", bottom_buf, git_root, function(bufnr) refresh_bottom_buf(bufnr, bottom_win) end, load_entry)
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 end
 
 return M

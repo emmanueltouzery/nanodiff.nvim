@@ -100,4 +100,16 @@ function M.win_load_buf(git_root, winnr, path, sha)
   vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
 end
 
+function M.ensure_visible_centered(win, lnum)
+  vim.api.nvim_win_call(win, function()
+    local top = vim.fn.line("w0")
+    local bottom = vim.fn.line("w$")
+    
+    if lnum < top or lnum > bottom then
+      vim.fn.cursor(lnum, 1)
+      vim.cmd("normal! zz")
+    end
+  end)
+end
+
 return M

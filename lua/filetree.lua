@@ -69,7 +69,7 @@ local function compress_and_sort(nodes)
   return nodes
 end
 
-local function insert_item(tree, parts, item, depth)
+local function insert_item(is_selected, tree, parts, item, depth)
   depth = depth or 1
   local part = parts[depth]
 
@@ -84,6 +84,9 @@ local function insert_item(tree, parts, item, depth)
     target = { path = part }
     table.insert(tree, target)
   end
+  if is_selected then
+    target.is_selected = true
+  end
 
   if depth == #parts then
     -- Copy all original item fields onto the leaf
@@ -93,21 +96,24 @@ local function insert_item(tree, parts, item, depth)
     end
   else
     target.is_dir, target.subs = true, target.subs or {}
-    insert_item(target.subs, parts, item, depth + 1)
+    insert_item(is_selected, target.subs, parts, item, depth + 1)
   end
 end
 
-local function build_tree(items)
+local function build_tree(items, selected_path)
   local root = {}
   for _, item in ipairs(items or {}) do
+    local is_selected = item.path == selected_path
     local parts = {}
     for part in item.path:gmatch("[^/]+") do table.insert(parts, part) end
-    insert_item(root, parts, item)
+    insert_item(is_selected, root, parts, item)
   end
   return compress_and_sort(root)
 end
 
+-- will return the line number of the selected item
 local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
+  local selection_line = nil
   local function path_append(root, child)
     if root == "" then
       return child
@@ -119,8 +125,6 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
   local prefix = string.rep(" ", depth*2)
   for _, item in ipairs(tree) do
     if item.is_dir then
-      if section_expand_st ~= nil then
-      end
       local full_path = path_append(full_path, item.path)
       line_to_item[#lines+1] = {type = "dir", path = full_path}
       -- 3 spaces for the prefix where files have the status [M] and so on
@@ -129,14 +133,21 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      if section_expand_st.folder_expanded == nil or section_expand_st.folder_expanded[full_path] ~= false then
-        render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
+      if item.is_selected or section_expand_st.folder_expanded == nil or section_expand_st.folder_expanded[full_path] ~= false then
+        local sl = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
+        if sl and selection_line == nil then
+          selection_line = sl
+        end
       end
     else
       local line_info
       local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
       local item_full_path = path_append(full_path, item.path)
-      local path_hl = item_full_path == selected_path and "DiffviewFilePanelSelected" or nil
+      local is_selected = item_full_path == selected_path
+      if is_selected then
+        selection_line = #lines+1
+      end
+      local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
       local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
       if item.status == "U" then
         -- git conflict: don't display the +- diffstat, rather the number of conflicts
@@ -178,8 +189,10 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
       table.insert(lines, line_info)
     end
   end
+  return selection_line
 end
 
+-- will return the line number of the selected item
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
     header, items, selected_path, section_expand_st, section_expand_default)
   if #items == 0 and not section_obj.always_show then return end
@@ -193,9 +206,10 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
   end
 
   if expanded then
-    local tree = build_tree(items, 0)
-    render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
+    local tree = build_tree(items, selected_path)
+    return render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
   end
+  return nil
 end
 
 function M.get_cur_section_item(bufnr)
@@ -205,7 +219,7 @@ function M.get_cur_section_item(bufnr)
   local section_line = line
   local section_item
   while section_line > 0 do
-    section_item = bdata.line_to_item[section_line] 
+    section_item = bdata.line_to_item[section_line]
     if section_item ~= nil and section_item.type == "section" then
       break
     end
@@ -219,6 +233,76 @@ function M.get_cur_section_item(bufnr)
 
   local item = bdata.line_to_item[line]
   return section, item
+end
+
+function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, load_entry)
+  local bdata = bufdata.get_data(bufnr)
+  local selected_item = bdata.selected_item
+  -- i cannot look at lines as they are in the buffer as items
+  -- may not be expanded right now
+
+  -- if the currently selected item is the last in its section,
+  -- then we want to select the first in the next section
+  local is_next_section = false
+
+  -- if the currently selected item is the last in the tree,
+  -- then we want to select the first item altogether
+  local first_section = nil
+  local first_item = nil
+
+  for i = 1, vim.api.nvim_buf_line_count(bufnr) do
+    local cur_item = bdata.line_to_item[i]
+    if cur_item and cur_item.type == "section" then
+      if first_section == nil then
+        first_section = cur_item.section_obj
+      end
+      if is_next_section and #cur_item.section_obj[section_items_key] > 0 then
+        -- the item was the last of its section, we're in the section
+        -- after, pick the first item from here
+        local item = cur_item.section_obj[section_items_key][1]
+        bdata.selected_item = {
+          section = cur_item.section_obj[section_key],
+          path = item.path,
+        }
+        bdata.tree_expand_st[cur_item.section_obj[section_key]] = { section_expanded = true }
+        refresh(bufnr)
+        load_entry(bufnr, git_root, cur_item.section_obj, item)
+        return
+      end
+      if cur_item.section_obj[section_key] == selected_item.section then
+        -- found the section
+        local section = cur_item.section_obj
+        local items = section[section_items_key]
+        for idx, item in ipairs(items) do
+          if item.path == selected_item.path then
+            -- found the item
+            if idx == #items then
+              -- last item of the section. the item we want is
+              -- the first of the next section or the first of the
+              -- first section if that's the last section
+              is_next_section = true
+            else
+              -- select the item after the current one
+              local new_item = items[idx+1]
+              bdata.selected_item = { section = section[section_key], path = new_item.path }
+              refresh(bufnr)
+              load_entry(bufnr, git_root, section, new_item)
+              return
+            end
+          end
+        end
+      end
+    elseif cur_item and cur_item.type == "path" and first_item == nil then
+      first_item = cur_item
+    end
+  end
+  -- didn't find so far, presumably got past the end, select the first
+  if first_section and first_item then
+    bdata.selected_item = { section = first_section[section_key], path = first_item.path }
+    bdata.tree_expand_st[first_section[section_key]] = { section_expanded = true }
+    refresh(bufnr)
+    load_entry(bufnr, git_root, first_section, first_item)
+  end
 end
 
 function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)

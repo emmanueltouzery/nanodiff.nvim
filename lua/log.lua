@@ -78,12 +78,12 @@ local function parse_git_log_output(stdout, opts)
   return commits
 end
 
-local function display_log_cmd(title, cmd_fn)
+local function display_log_cmd(title, cmd_fn, opts)
   io_helpers.async_progress("Loading git log", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local git_log = cmd_fn(git_root)
     vim.schedule(function()
-      logtab.open_log_tab(title, git_log, git_root, cmd_fn)
+      logtab.open_log_tab(title, git_log, git_root, cmd_fn, opts)
     end)
   end)
 end
@@ -96,6 +96,11 @@ function M.display_log(opts)
     single_file_path = vim.api.nvim_buf_get_name(buf)
   end
   opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
+  opts.shortcuts = opts.shortcuts or {}
+  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
+  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
+  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
+  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
   display_log_cmd("Log view", function(git_root, extra_params)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
@@ -116,7 +121,7 @@ function M.display_log(opts)
     end
     vim.list_extend(cmd, { "--", single_file_path or git_root })
     return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
-  end)
+  end, opts)
 end
 
 function M.display_stashes(opts)
@@ -137,7 +142,7 @@ function M.display_stashes(opts)
       "refs/stash"
     }}):flatten():totable()
     return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
-  end)
+  end, opts)
 end
 
 return M
