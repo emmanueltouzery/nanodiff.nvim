@@ -88,8 +88,8 @@ end
 local function load_entry(bottom_buf, git_root, commit, item)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.selected_item = {section = commit.hash, path = item.path}
-  tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_hash or commit.hash .. "^")
-  tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_hash or commit.hash)
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_sha or commit.hash .. "^")
+  tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_sha or commit.hash)
   refresh_bottom_buf(bottom_buf)
 end
 

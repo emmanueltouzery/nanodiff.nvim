@@ -52,6 +52,13 @@ local function parse_git_log_output(stdout, opts)
               path = paths[1],
               new_path = paths[2]
             })
+          elseif status_char == "A" then
+            -- added file
+            table.insert(current_commit.files, {
+              status = status_char,
+              path = paths[1],
+              left_sha = "nil",
+            })
           else
             table.insert(current_commit.files, {
               status = status_char,
