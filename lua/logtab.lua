@@ -81,7 +81,7 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
   vim.bo[bottom_buf].modifiable = false
   vim.bo[bottom_buf].readonly = true
   if scroll_win and selection_line then
-    tabcommon.ensure_visible_centered(scroll_win, selection_line)
+    vim.api.nvim_win_set_cursor(scroll_win, { selection_line, 0 })
   end
 end
 
