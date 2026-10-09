@@ -1,10 +1,11 @@
-local async = vim.async
-local async_sys = async.wrap(3, vim.system)
-
 local M = {}
 
+local async = vim.async
+M.async_sys = async.wrap(3, vim.system)
+
+
 function M.run_cmd(cmd, opts)
-  local res = async_sys(cmd, opts)
+  local res = M.async_sys(cmd, opts)
   if res.code ~= 0 then
     error(table.concat(cmd, " ") .. " error: " .. res.stderr)
   end

@@ -3,6 +3,8 @@ local io_helpers = require("io_helpers")
 
 local M = {}
 
+local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
+
 local function win_set_diff(winnr)
   -- without scope=local any popups opening over the window will inherit the diff flag,
   -- completely breaking the diff
@@ -11,6 +13,18 @@ local function win_set_diff(winnr)
   vim.api.nvim_set_option_value('foldmethod', 'diff', { win = winnr, scope = 'local' })
   vim.api.nvim_set_option_value('foldlevel', 0, { win = winnr, scope = 'local' })
   vim.api.nvim_set_option_value('foldenable', true, { win = winnr, scope = 'local' })
+end
+
+local function win_load_null_file(winnr)
+  local bufname = "git://null"
+  local bufnr = vim.fn.bufnr(bufname)
+  if bufnr == -1 then
+    bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
+    vim.api.nvim_buf_set_name(bufnr, bufname)
+    vim.bo[bufnr].bufhidden = "wipe"
+  end
+  vim.api.nvim_win_set_buf(winnr, bufnr)
+  win_set_diff(winnr)
 end
 
 local function win_load_disk_file(winnr, path)
@@ -77,32 +91,68 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   end
 end
 
-local function win_load_null_file(winnr)
-  local bufname = "git://null"
-  local bufnr = vim.fn.bufnr(bufname)
-  if bufnr == -1 then
-    bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
-    vim.api.nvim_buf_set_name(bufnr, bufname)
-    vim.bo[bufnr].bufhidden = "wipe"
+--check if a file is binary using only git, lifted and modified from diffview.nvim
+--@return boolean -- True if the file was binary for the given rev, or it didn't exist.
+local function is_binary(git_root, path, rev)
+  -- -I ignore binary files, -e ., match any character (for non-binary files)
+  local cmd = { "git", "grep", "-I", "--name-only", "-e", "." }
+  if rev == "disk" then
+    cmd[#cmd+1] = "--untracked"
+    cmd[#cmd+1] = "--no-exclude-standard"
+  elseif rev == ":0" then
+    cmd[#cmd+1] = "--cached"
+  else
+    cmd[#cmd+1] = rev
   end
-  vim.api.nvim_win_set_buf(winnr, bufnr)
-  win_set_diff(winnr)
+  vim.list_extend(cmd, {"--", path})
+  local res = io_helpers.async_sys(cmd, { cwd = git_root })
+  return res.code ~= 0
+end
+
+local function blob_size(git_root, path, rev)
+  if rev == "disk" then
+    local stat = vim.uv.fs_stat(git_root .. "/" .. path)
+    return stat and stat.size or 0
+  else
+    local res = io_helpers.async_sys({ "git", "cat-file", "-s", rev .. ":" .. path }, { cwd = git_root })
+    return (res.code == 0) and tonumber(res.stdout) or 0
+  end
 end
 
 function M.win_load_buf(git_root, winnr, path, sha)
   vim.wo[winnr].diff = false
   vim.wo[winnr].scrollbind = false
-  if sha == "disk" then
-    win_load_disk_file(winnr, path)
-  elseif sha == "nil" then
+
+  if sha == "nil" then
     win_load_null_file(winnr)
+    -- if we don't force the line number to zero, neovim
+    -- might reposition the file at the last-remembered line number
+    -- for that file
+    vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
   else
-    win_load_sha_file(winnr, git_root, path, sha)
+    async.run(function()
+      local is_display = true
+      local blob_size = blob_size(git_root, path, sha)
+      if blob_size > FILE_SIZE_LIMIT_BYTES then
+        is_display = false
+      else
+        is_display = not is_binary(git_root, path, sha)
+      end
+      vim.schedule(function()
+        if not is_display then
+          win_load_null_file(winnr)
+        elseif sha == "disk" then
+          win_load_disk_file(winnr, path)
+        else
+          win_load_sha_file(winnr, git_root, path, sha)
+        end
+        -- if we don't force the line number to zero, neovim
+        -- might reposition the file at the last-remembered line number
+        -- for that file
+        vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
+      end)
+    end):raise_on_error()
   end
-  -- if we don't force the line number to zero, neovim
-  -- might reposition the file at the last-remembered line number
-  -- for that file
-  vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
 end
 
 return M
