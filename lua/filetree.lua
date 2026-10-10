@@ -218,7 +218,7 @@ local function tree_collect_files(nodes, prefix, acc)
     return acc
 end
 
--- will return the line number of the selected item
+-- will return the files in display order (including not-displayed files due to collapsed folders) and line number of the selected item
 -- TODO if add_section always renders even collapsed folders, don't
 -- call it for every refresh, only call render_tree again
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
@@ -266,34 +266,24 @@ function M.get_cur_section_item(bufnr)
 end
 
 function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, load_entry)
-print("next_file")
   local bdata = bufdata.get_data(bufnr)
-  local selected_item = bdata.selected_item
-  -- i cannot look at lines as they are in the buffer as items
-  -- may not be expanded right now
-
-  local cur_item_section = nil
-  local is_next_path = false
-
-  -- if the currently selected item is the last in the tree,
-  -- then we want to select the first item altogether
-  local first_section = nil
-  local first_item = nil
 
   local next = false
   for i, file in ipairs(bdata.sorted_files) do
     if next then
       bdata.selected_item = file
       refresh(bufnr)
+      load_entry(bufnr, git_root, {[section_key] = bdata.selected_item.section}, bdata.selected_item, true)
       return
     end
-    if file.path == selected_item.path and file.section == selected_item.section then
+    if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
       next = true
     end
   end
   -- didn't find, presumably got past the end, select the first
   bdata.selected_item = bdata.sorted_files[1]
   refresh(bufnr)
+  load_entry(bufnr, git_root, {[section_key] = bdata.selected_item.section}, bdata.selected_item, true)
 end
 
 function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)

@@ -71,7 +71,7 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
     local section_sorted_files, sl = filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
       format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash],
-      false, scroll_win
+      false, scroll_win ~= nil
     )
     vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
     if sl and selection_line == nil then
@@ -86,15 +86,16 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
   if scroll_win and selection_line then
     vim.api.nvim_win_set_cursor(scroll_win, { selection_line, 0 })
   end
-  return bottom_buf_data.selected_item -- i think this can go
 end
 
-local function load_entry(bottom_buf, git_root, commit, item)
+local function load_entry(bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.selected_item = {section = commit.hash, path = item.path}
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_sha or commit.hash .. "^")
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_sha or commit.hash)
-  refresh_bottom_buf(bottom_buf)
+  if not skip_refresh_bottom_buf then
+    refresh_bottom_buf(bottom_buf)
+  end
 end
 
 function M.open_log_tab(title, log, git_root, cmd_fn, opts)
