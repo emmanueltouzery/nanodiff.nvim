@@ -208,6 +208,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
+      filetree.prev_file("hash", "files", bottom_buf, git_root, function(bufnr) refresh_bottom_buf(bufnr, bottom_win) end, load_entry)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.next_file, function()

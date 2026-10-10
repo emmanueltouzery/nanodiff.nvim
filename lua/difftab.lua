@@ -221,6 +221,7 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     end, { noremap = true, silent = true, buffer = left_buf })
 
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
+      filetree.prev_file("title", "items", left_buf, git_root, function(bufnr) refresh_left_buf(bufnr, left_win) end, load_entry)
     end, { noremap = true, silent = true, buffer = left_buf })
 
     vim.keymap.set('n', opts.shortcuts.next_file, function()

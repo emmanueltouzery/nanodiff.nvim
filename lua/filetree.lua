@@ -284,7 +284,32 @@ function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, l
   -- didn't find, presumably got past the end, select the first
   bdata.selected_item = bdata.sorted_files[1]
   refresh(bufnr)
-  load_entry(bufnr, git_root, {[section_key] = bdata.selected_item.section}, bdata.selected_item, true)
+  local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
+  load_entry(bufnr, git_root, section, item, true)
+end
+
+function M.prev_file(section_key, section_items_key, bufnr, git_root, refresh, load_entry)
+  local bdata = bufdata.get_data(bufnr)
+
+  local prev = false
+  for i = #bdata.sorted_files, 1, -1 do
+    local file = bdata.sorted_files[i]
+    if prev then
+      bdata.selected_item = file
+      refresh(bufnr)
+      local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
+      load_entry(bufnr, git_root, section, item, true)
+      return
+    end
+    if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
+      prev = true
+    end
+  end
+  -- didn't find, presumably got past the start, select the last
+  bdata.selected_item = bdata.sorted_files[#bdata.sorted_files]
+  refresh(bufnr)
+  local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
+  load_entry(bufnr, git_root, section, item, true)
 end
 
 function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)
