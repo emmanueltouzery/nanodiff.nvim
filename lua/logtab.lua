@@ -148,7 +148,6 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.wo[bottom_win].wrap = false
 
   vim.api.nvim_set_current_win(bottom_win)
-  vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
   -- display the first entry immediately
   if #log > 0 then
     -- due to sorting in the treeview (including sorting folders first), the first path
@@ -163,10 +162,14 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
       end
     end
     load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_item[lowest_idx_line_to_path])
+    vim.api.nvim_win_set_cursor(bottom_win, { lowest_idx_line_to_path, 0 })
+    -- Force the top of the buffer (line 1) to be visible at the top of the window
+    vim.fn.winrestview({ topline = 1 })
   else
     -- no data, display nil buffers
     load_entry(
       bottom_buf, git_root, {}, {left_hash = "nil", right_hash = "nil"})
+    vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
   end
 
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")

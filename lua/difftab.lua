@@ -175,7 +175,6 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   vim.wo[left_win].wrap = false
 
   vim.api.nvim_set_current_win(left_win)
-  vim.api.nvim_win_set_cursor(left_win, { 1, 0 })
   -- display the first entry immediately
   local first_nonempty_section = vim.iter(sections):find(function(s) return #s.contents > 0 end)
   if first_nonempty_section then
@@ -193,10 +192,14 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     load_entry(
       left_buf, git_root, first_nonempty_section,
       left_buf_data.line_to_item[lowest_idx_line_to_path])
+    vim.api.nvim_win_set_cursor(left_win, { lowest_idx_line_to_path, 0 })
+    -- Force the top of the buffer (line 1) to be visible at the top of the window
+    vim.fn.winrestview({ topline = 1 })
   else
     -- no data, display nil buffers
     load_entry(
       left_buf, git_root, {}, {left_sha = "nil", right_sha = "nil"})
+    vim.api.nvim_win_set_cursor(left_win, { 1, 0 })
   end
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
