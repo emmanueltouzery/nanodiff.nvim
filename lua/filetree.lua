@@ -223,7 +223,7 @@ end
 -- call it for every refresh, only call render_tree again
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
     header, items, selected_path, section_expand_st, section_expand_default, reveal_selected)
-  if #items == 0 and not section_obj.always_show then return end
+  if #items == 0 and not section_obj.always_show then return {}, nil end
 
   line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
   table.insert(lines, header)
@@ -273,7 +273,8 @@ function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, l
     if next then
       bdata.selected_item = file
       refresh(bufnr)
-      load_entry(bufnr, git_root, {[section_key] = bdata.selected_item.section}, bdata.selected_item, true)
+      local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
+      load_entry(bufnr, git_root, section, item, true)
       return
     end
     if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then

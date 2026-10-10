@@ -8,10 +8,12 @@ local index_watcher = require('index_watcher')
 
 local M = {}
 
-local function refresh_left_buf(left_buf)
+local function refresh_left_buf(left_buf, scroll_win)
   local lines = {}
   local left_buf_data = bufdata.get_data(left_buf)
   left_buf_data.line_to_item = {}
+  left_buf_data.sorted_files = {}
+  local selection_line = nil
   for _, section in ipairs(left_buf_data.sections) do
     local selected_path = nil
     if left_buf_data.selected_item ~= nil and left_buf_data.selected_item.section == section.title then
@@ -21,11 +23,17 @@ local function refresh_left_buf(left_buf)
       -- separator from the previous section
       table.insert(lines, "")
     end
-    filetree.add_section(left_buf_data.conflicts_state, section,
+    local section_sorted_files, sl = filetree.add_section(left_buf_data.conflicts_state, section,
       lines, left_buf_data.line_to_item,
       {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} },
-      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true
+      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true, scroll_win ~= nil
     )
+    if section_sorted_files then
+      vim.list_extend(left_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = section.title} end, section_sorted_files))
+    end
+    if sl and selection_line == nil then
+      selection_line = sl
+    end
   end
   left_buf_data.line_to_path = line_to_path
   left_buf_data.line_to_extra = line_to_extra
@@ -36,6 +44,9 @@ local function refresh_left_buf(left_buf)
   filetree.render_lines(left_buf, lines)
   vim.bo[left_buf].modifiable = false
   vim.bo[left_buf].readonly = true
+  if scroll_win and selection_line then
+    vim.api.nvim_win_set_cursor(scroll_win, { selection_line, 0 })
+  end
 end
 
 local function load_entry(left_buf, git_root, section, item)
@@ -99,7 +110,7 @@ local function left_buf_handle_enter(git_root, bufnr)
   filetree.handle_enter("title", true, git_root, bufnr, refresh_left_buf, load_entry)
 end
 
-function M.open_diff_tab(sections, git_root, reload_index)
+function M.open_diff_tab(sections, git_root, reload_index, opts)
   vim.cmd("tabnew")
 
   vim.wo.spell = false
@@ -195,6 +206,27 @@ function M.open_diff_tab(sections, git_root, reload_index)
     silent = true,
     buffer = left_buf
   })
+
+  if opts.shortcuts.fwd then
+    vim.keymap.set('n', opts.shortcuts.bwd, function()
+      vim.api.nvim_win_call(diff1_win, function()
+        vim.cmd("normal! " .. vim.keycode("<C-b>"))
+      end)
+    end, { noremap = true, silent = true, buffer = left_buf })
+
+    vim.keymap.set('n', opts.shortcuts.fwd, function()
+      vim.api.nvim_win_call(diff1_win, function()
+        vim.cmd("normal! " .. vim.keycode("<C-f>"))
+      end)
+    end, { noremap = true, silent = true, buffer = left_buf })
+
+    vim.keymap.set('n', opts.shortcuts.prev_file, function()
+    end, { noremap = true, silent = true, buffer = left_buf })
+
+    vim.keymap.set('n', opts.shortcuts.next_file, function()
+      filetree.next_file("title", "items", left_buf, git_root, function(bufnr) refresh_left_buf(bufnr, left_win) end, load_entry)
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
 
   return left_buf
 end
