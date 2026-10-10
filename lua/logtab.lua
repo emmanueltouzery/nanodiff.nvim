@@ -61,16 +61,19 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
     { {bottom_buf_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
   }
   bottom_buf_data.line_to_item = {}
+  bottom_buf_data.sorted_files = {}
   local selection_line = nil
   for _, commit in ipairs(bottom_buf_data.log) do
     local selected_path = nil
     if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.section == commit.hash then
       selected_path = bottom_buf_data.selected_item.path
     end
-    local sl = filetree.add_section(nil, commit,
+    local section_sorted_files, sl = filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
-      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash]
+      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash],
+      false, scroll_win
     )
+    vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
     if sl and selection_line == nil then
       selection_line = sl
     end
@@ -83,6 +86,7 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
   if scroll_win and selection_line then
     vim.api.nvim_win_set_cursor(scroll_win, { selection_line, 0 })
   end
+  return bottom_buf_data.selected_item -- i think this can go
 end
 
 local function load_entry(bottom_buf, git_root, commit, item)

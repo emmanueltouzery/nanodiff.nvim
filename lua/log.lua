@@ -134,6 +134,11 @@ end
 function M.display_stashes(opts)
   opts = opts or {}
   opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
+  opts.shortcuts = opts.shortcuts or {}
+  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
+  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
+  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
+  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
   display_log_cmd("Stashes", function(git_root, extra_params)
     local cmd = vim.iter({
       { "git", "-P",
