@@ -1,5 +1,4 @@
 local M = {}
-local bufdata = require('bufdata')
 
 -- local folder_closed = "",
 local folder_open = " "
@@ -68,7 +67,7 @@ local function compress_and_sort(nodes)
   return nodes
 end
 
-local function insert_item(is_selected, tree, parts, item, depth)
+local function insert_item(tree, parts, item, depth)
   depth = depth or 1
   local part = parts[depth]
 
@@ -83,9 +82,6 @@ local function insert_item(is_selected, tree, parts, item, depth)
     target = { path = part }
     table.insert(tree, target)
   end
-  if is_selected then
-    target.is_selected = true
-  end
 
   if depth == #parts then
     -- Copy all original item fields onto the leaf
@@ -95,28 +91,22 @@ local function insert_item(is_selected, tree, parts, item, depth)
     end
   else
     target.is_dir, target.subs = true, target.subs or {}
-    insert_item(is_selected, target.subs, parts, item, depth + 1)
+    insert_item(target.subs, parts, item, depth + 1)
   end
 end
 
-local function build_tree(items, selected_path)
+local function build_tree(items)
   local root = {}
-  local selected_item = nil
   for idx, item in ipairs(items or {}) do
-    local is_selected = item.path == selected_path
     local parts = {}
     for part in item.path:gmatch("[^/]+") do table.insert(parts, part) end
-    insert_item(is_selected, root, parts, item)
-    if is_selected then
-      selected_item = item
-    end
+    insert_item(root, parts, item)
   end
-  -- TODO drop that returning selected_item
-  return compress_and_sort(root), selected_item
+  return compress_and_sort(root)
 end
 
 -- will return the line number of the selected item
-local function render_tree(ft, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path, expand_selected)
+local function render_tree(ft, ft_st, selected_path, section_expand_st, tree, depth, full_path, expand_selected)
   local selection_line = nil
   local function path_append(root, child)
     if root == "" then
@@ -130,9 +120,9 @@ local function render_tree(ft, lines, line_to_item, selected_path, section_expan
   for idx, item in ipairs(tree) do
     if item.is_dir then
       local full_path = path_append(full_path, item.path)
-      line_to_item[#lines+1] = {type = "dir", path = full_path}
+      ft_st.line_to_item[#ft_st.lines+1] = {type = "dir", path = full_path}
       -- 3 spaces for the prefix where files have the status [M] and so on
-      table.insert(lines, {
+      table.insert(ft_st.lines, {
         {"   " .. prefix, nil},
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
@@ -140,7 +130,7 @@ local function render_tree(ft, lines, line_to_item, selected_path, section_expan
       local expand_set = section_expand_st.folder_expanded and section_expand_st.folder_expanded[full_path]
       local expand = expand_set ~= false or expand_selected
       if expand then
-        local sl, sp = render_tree(ft, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
+        local sl, sp = render_tree(ft, ft_st, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
         if sl and selection_line == nil then
           selection_line = sl
           selected_path = sp
@@ -151,15 +141,15 @@ local function render_tree(ft, lines, line_to_item, selected_path, section_expan
       local item_full_path = path_append(full_path, item.path)
       local is_selected = item_full_path == selected_path
       if is_selected then
-        selection_line = #lines+1
+        selection_line = #ft_st.lines+1
         selected_path = item_full_path
       end
-      local line_info = ft.render_row(prefix, item, is_selected)
-      line_to_item[#lines+1] = {type = "path", path = item_full_path}
+      local line_info = ft.render_item(prefix, item, is_selected)
+      ft_st.line_to_item[#ft_st.lines+1] = {type = "path", path = item_full_path}
       if item.left_sha then
-        line_to_item[#lines+1].left_sha = item.left_sha -- used for untracked files
+        ft_st.line_to_item[#ft_st.lines+1].left_sha = item.left_sha -- used for untracked files
       end
-      table.insert(lines, line_info)
+      table.insert(ft_st.lines, line_info)
     end
   end
   return selection_line, selected_path
@@ -184,33 +174,46 @@ function M.create_ft(params)
   return {
     section_get_key = params.section_get_key,
     section_get_items = params.section_get_items,
-    refresh = params.refresh, --(scroll_to_selection)
-    render_row = params.render_row, -- TODO rename to render_item
+    get_header = params.get_header,
+    render_item = params.render_item,
     render_section = params.render_section,
     item_activated = params.item_activated,
     expand_default = params.expand_default,
   }
 end
 
--- tree_st
--- lines, line_to_item, selected_path, section_expand_st, 
+function M.create_ft_st(params)
+  return {
+    -- where to render
+    bufnr = params.bufnr,
+    winnr = params.winnr,
 
--- add_section
- -- section_obj, items, section_expand_default, expand_selected
+    -- depends on data alone
+    sections = {},
+    tree_by_section = {},
+    sorted_files = {}, -- subfields secion+path
 
--- will return the files in display order (including not-displayed files due to collapsed folders) and line number of the selected item
--- TODO if add_section always renders even collapsed folders, don't
--- call it for every refresh, only call render_tree again
-function M.add_section(ft, section_obj, lines, line_to_item,
-    selected_path, section_expand_st, expand_selected)
+    -- user-applied state
+    tree_expand_st = {},
+    selected_item = nil, -- subfields section+path
+
+    -- depends on node expansion state
+    lines = {},
+    line_to_item = {},
+  }
+end
+
+-- will return line number of the selected item
+local function add_section_to_lines(ft, ft_st, section_obj, selected_path, section_expand_st, expand_selected)
+  local section_key = ft.section_get_key(section_obj)
   local items = ft.section_get_items(section_obj)
-  if #items == 0 and not section_obj.always_show then return {}, nil end
+  if #items == 0 and not section_obj.always_show then return nil end
 
   local header = ft.render_section(section_obj, selected_path)
-  line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
-  table.insert(lines, header)
+  ft_st.line_to_item[#ft_st.lines+1] = {type = "section", header = header, section_obj = section_obj}
+  table.insert(ft_st.lines, header)
 
-  local tree = build_tree(items, selected_path)
+  local tree = ft_st.tree_by_section[section_key]
 
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
   local expanded = nil
@@ -221,19 +224,88 @@ function M.add_section(ft, section_obj, lines, line_to_item,
   end
   local selection_line = nil
   if expanded then
-    selection_line = render_tree(ft, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
+    selection_line = render_tree(ft, ft_st, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
   end
-  return tree_collect_files(tree, "", {}), selection_line
+  return selection_line
 end
 
-function M.get_cur_section_item(bufnr)
+--- redisplay must be performed after node expand/collapse or selection change
+function M.redisplay(ft, ft_st, scroll_win)
+  ft_st.lines = ft.get_header()
+  ft_st.line_to_item = {}
+
+  local selection_line = nil
+  for _, section in ipairs(ft_st.sections) do
+    local section_key = ft.section_get_key(section)
+    local selected_path = nil
+    if ft_st.selected_item ~= nil and ft.section_get_key(ft_st.selected_item.section) == section_key then
+      selected_path = ft_st.selected_item.item.path
+    end
+    local sl = add_section_to_lines(ft, ft_st, section, selected_path, ft_st.tree_expand_st[section_key], scroll_win)
+    if sl and selection_line == nil then
+      selection_line = sl
+    end
+  end
+
+  vim.bo[ft_st.bufnr].modifiable = true
+  vim.bo[ft_st.bufnr].readonly = false
+  M.render_lines(ft_st.bufnr, ft_st.lines)
+  vim.bo[ft_st.bufnr].modifiable = false
+  vim.bo[ft_st.bufnr].readonly = true
+  if scroll_win and selection_line then
+    vim.api.nvim_win_set_cursor(ft_st.winnr, { selection_line, 0 })
+  end
+end
+
+-- if you pass in the scroll_win, the cursor will be moved to
+-- the selected item after displaying
+function M.set_contents(ft, ft_st, data)
+  ft_st.sections = data
+  ft_st.tree_by_section = {}
+  ft_st.sorted_files = {}
+
+  if #data > 0 then
+    -- expand the first section if any
+    -- TODO first section may be empty?
+    ft_st.tree_expand_st[ft.section_get_key(data[1])] = {section_expanded = true}
+  end
+
+  for _, section in ipairs(data) do
+    local section_key = ft.section_get_key(section)
+    local items = ft.section_get_items(section)
+    local section_tree = build_tree(items)
+    ft_st.tree_by_section[section_key] = section_tree
+    local section_sorted_files = tree_collect_files(section_tree, "", {})
+    vim.list_extend(ft_st.sorted_files,
+      vim.tbl_map(function(p) return {
+        item = vim.iter(items):find(function(item) return item.path == p end),
+        section = section
+      } end,
+      section_sorted_files))
+    if #ft_st.sorted_files > 0 and ft_st.selected_item == nil then
+      ft_st.selected_item = ft_st.sorted_files[1]
+    end
+  end
+  M.redisplay(ft, ft_st, true)
+  -- display the first entry immediately
+  if #data > 0 then
+    ft.item_activated(ft, ft_st, ft_st.selected_item.section, ft_st.selected_item.item, true)
+    -- Force the top of the buffer (line 1) to be visible at the top of the window
+    vim.fn.winrestview({ topline = 1 })
+  else
+    -- no data, display nil buffers
+    ft.item_activated(ft, ft_st, nil, nil)
+    vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
+  end
+end
+
+function M.get_cur_section_item(ft_st)
   local line = vim.fn.line('.')
-  local bdata = bufdata.get_data(bufnr)
 
   local section_line = line
   local section_item
   while section_line > 0 do
-    section_item = bdata.line_to_item[section_line]
+    section_item = ft_st.line_to_item[section_line]
     if section_item ~= nil and section_item.type == "section" then
       break
     end
@@ -245,87 +317,86 @@ function M.get_cur_section_item(bufnr)
   end
   local section = section_item.section_obj
 
-  local item = bdata.line_to_item[line]
+  local item = ft_st.line_to_item[line]
   return section, item
 end
 
-function M.next_file(ft, bufnr, git_root)
-  local bdata = bufdata.get_data(bufnr)
-
+function M.next_file(ft, ft_st)
   local next = false
-  for i, file in ipairs(bdata.sorted_files) do
+  for i, file in ipairs(ft_st.sorted_files) do
     if next then
-      bdata.selected_item = file
-      ft.refresh(bufnr, true)
-      local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-      ft.item_activated(bufnr, git_root, section, item, true)
+      ft_st.selected_item = file
+      M.redisplay(ft, ft_st, true)
+      local section, item = M.get_cur_section_item(ft_st) -- TODO dodgy: we rely on redisplay() moving the cursor to the item
+      ft.item_activated(ft, ft_st, section, item, true)
       return
     end
-    if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
+    if file.item.path == ft_st.selected_item.item.path and file.section == ft_st.selected_item.section then
       next = true
     end
   end
   -- didn't find, presumably got past the end, select the first
-  bdata.selected_item = bdata.sorted_files[1]
-  ft.refresh(true)
-  local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-  ft.item_activated(bufnr, git_root, section, item, true)
+  ft_st.selected_item = ft_st.sorted_files[1]
+  M.redisplay(ft, ft_st, true)
+  local section, item = M.get_cur_section_item(ft_st) -- TODO dodgy: we rely on redisplay() moving the cursor to the item
+  ft.item_activated(ft, ft_st, section, item, true)
 end
 
-function M.prev_file(ft, bufnr, git_root)
-  local bdata = bufdata.get_data(bufnr)
-
+function M.prev_file(ft, ft_st)
   local prev = false
-  for i = #bdata.sorted_files, 1, -1 do
-    local file = bdata.sorted_files[i]
+  for i = #ft_st.sorted_files, 1, -1 do
+    local file = ft_st.sorted_files[i]
     if prev then
-      bdata.selected_item = file
-      ft.refresh(bufnr, true)
-      local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-      ft.item_activated(bufnr, git_root, section, item, true)
+      ft_st.selected_item = file
+      M.redisplay(ft, ft_st, true)
+      local section, item = M.get_cur_section_item(ft_st) -- TODO dodgy: we rely on redisplay() moving the cursor to the item
+      ft.item_activated(ft, ft_st, section, item, true)
       return
     end
-    if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
+    if file.item.path == ft_st.selected_item.item.path and file.section == ft_st.selected_item.section then
       prev = true
     end
   end
   -- didn't find, presumably got past the start, select the last
-  bdata.selected_item = bdata.sorted_files[#bdata.sorted_files]
-  ft.refresh(true)
-  local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-  ft.item_activated(bufnr, git_root, section, item, true)
+  ft_st.selected_item = ft_st.sorted_files[#ft_st.sorted_files]
+  M.redisplay(ft, ft_st, true)
+  local section, item = M.get_cur_section_item(ft_st) -- TODO dodgy: we rely on redisplay() moving the cursor to the item
+  ft.item_activated(ft, ft_st, section, item, true)
 end
 
-function M.handle_enter(ft, git_root, bufnr)
-  local section, item = M.get_cur_section_item(bufnr)
+function M.set_selected_item(ft_st, section, item)
+  ft_st.selected_item = {section = section, item = item}
+end
+
+function M.handle_enter(ft, ft_st)
+  local section, item = M.get_cur_section_item(ft_st)
   if item == nil then
     return
   end
   local section_key_val = ft.section_get_key(section)
-  local bdata = bufdata.get_data(bufnr)
 
   if item.type == "dir" then
-    bdata.tree_expand_st[section_key_val] = bdata.tree_expand_st[section_key_val] or { section_expanded = true }
-    bdata.tree_expand_st[section_key_val].folder_expanded = bdata.tree_expand_st[section_key_val].folder_expanded or {}
-    local folder_expanded = bdata.tree_expand_st[section_key_val].folder_expanded
+    ft_st.tree_expand_st[section_key_val] = ft_st.tree_expand_st[section_key_val] or { section_expanded = true }
+    ft_st.tree_expand_st[section_key_val].folder_expanded = ft_st.tree_expand_st[section_key_val].folder_expanded or {}
+    local folder_expanded = ft_st.tree_expand_st[section_key_val].folder_expanded
     prev_expanded = folder_expanded[item.path]
     if prev_expanded == nil then
       prev_expanded = true
     end
     folder_expanded[item.path] = not prev_expanded
-    ft.refresh(false)
+    M.redisplay(ft, ft_st, false)
   elseif item.type == "section" then
-    if bdata.tree_expand_st[section_key_val] == nil then
-      bdata.tree_expand_st[section_key_val] = {}
+    if ft_st.tree_expand_st[section_key_val] == nil then
+      ft_st.tree_expand_st[section_key_val] = {}
     end
-    local prev_expanded = bdata.tree_expand_st[section_key_val].section_expanded
+    local prev_expanded = ft_st.tree_expand_st[section_key_val].section_expanded
     if prev_expanded == nil then
       prev_expanded = ft.expand_default
     end
-    bdata.tree_expand_st[section_key_val].section_expanded = not prev_expanded
-    ft.refresh(false)
+    ft_st.tree_expand_st[section_key_val].section_expanded = not prev_expanded
+    M.redisplay(ft, ft_st, false)
   elseif item.type == "path" then
-    ft.item_activated(bufnr, git_root, section, item)
+    ft.item_activated(ft, ft_st, section, item)
   end
 end
 

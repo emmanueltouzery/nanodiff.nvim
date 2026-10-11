@@ -53,50 +53,24 @@ local function format_commit_summary(commit, has_selection)
   }
 end
 
--- if you pass in the scroll_win, the cursor will be moved to
--- the selected item after displaying
-local function refresh_bottom_buf(bottom_buf, scroll_win)
+local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
-  local lines = {
-    { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
-    {},
-    { {bottom_buf_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #bottom_buf_data.log), "DiffviewFilePanelCounter"} },
-  }
-  bottom_buf_data.line_to_item = {}
-  bottom_buf_data.sorted_files = {}
-  local selection_line = nil
-  for _, commit in ipairs(bottom_buf_data.log) do
-    local selected_path = nil
-    if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.section == commit.hash then
-      selected_path = bottom_buf_data.selected_item.path
-    end
-    local section_sorted_files, sl = filetree.add_section(bottom_buf_data.ft, commit,
-      lines, bottom_buf_data.line_to_item,
-      selected_path, bottom_buf_data.tree_expand_st[commit.hash], scroll_win ~= nil
-    )
-    vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
-    if sl and selection_line == nil then
-      selection_line = sl
-    end
-  end
-  vim.bo[bottom_buf].modifiable = true
-  vim.bo[bottom_buf].readonly = false
-  filetree.render_lines(bottom_buf, lines)
-  vim.bo[bottom_buf].modifiable = false
-  vim.bo[bottom_buf].readonly = true
-  if scroll_win and selection_line then
-    vim.api.nvim_win_set_cursor(scroll_win, { selection_line, 0 })
-  end
-end
-
-local function load_entry(bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
-  local bottom_buf_data = bufdata.get_data(bottom_buf)
+  filetree.set_selected_item(ft_st, commit, item)
   bottom_buf_data.selected_item = {section = commit.hash, path = item.path}
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_sha or commit.hash .. "^")
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_sha or commit.hash)
   if not skip_refresh_bottom_buf then
-    refresh_bottom_buf(bottom_buf, bottom_buf_data.bottom_win)
+    filetree.redisplay(bottom_buf_data.ft, bottom_buf_data.ft_st, true)
   end
+end
+
+local function get_header(bottom_buf, log)
+  local bottom_buf_data = bufdata.get_data(bottom_buf)
+  return {
+    { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
+    {},
+    { {bottom_buf_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #log), "DiffviewFilePanelCounter"} },
+  }
 end
 
 function M.open_log_tab(title, log, git_root, cmd_fn, opts)
@@ -112,44 +86,42 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.bo[bottom_buf].filetype = "NanodiffFiles"
 
   local bottom_buf_data = bufdata.get_data(bottom_buf)
+  bottom_buf_data.bottom_win = bottom_win
   bottom_buf_data.title = title
-  bottom_buf_data.log = log
+
   bottom_buf_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.hash end,
     section_get_items = function(s) return s.files end,
-    refresh = function(scroll_to_selection) refresh_bottom_buf(bottom_buf, scroll_to_selection and bottom_win or nil) end,
-    render_row = tabcommon.tree_render_row,
+    get_header = function() return get_header(bottom_buf, log) end,
+    render_item = tabcommon.tree_render_item,
     render_section = format_commit_summary,
-    item_activated = load_entry,
+    item_activated = function(ft, ft_st, section, item, skip_refresh_bottom_buf)
+      load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, skip_refresh_bottom_buf)
+    end,
     expand_default = false,
   })
-  bottom_buf_data.tree_expand_st = {}
-
-  if #log > 0 then
-    bottom_buf_data.tree_expand_st[log[1].hash] = {section_expanded = true}
-  end
-
-  refresh_bottom_buf(bottom_buf)
-  bottom_buf_data.bottom_win = bottom_win
+  bottom_buf_data.ft_st = filetree.create_ft_st({
+    bufnr = bottom_buf,
+    winnr = bottom_win,
+  })
 
   -- Open a new window above the current one
-  local diff1_win = vim.api.nvim_open_win(0, true, {
+  bottom_buf_data.diff1_win = vim.api.nvim_open_win(0, true, {
     split = 'above',
     win = current_win,
   })
 
   -- Split that new window vertically to create the top-right window
-  local diff2_win = vim.api.nvim_open_win(0, true, {
+  bottom_buf_data.diff2_win = vim.api.nvim_open_win(0, true, {
     split = 'right',
     win = top_left_win,
   })
+  vim.api.nvim_win_resize(bottom_win, -1, 15)
 
-  vim.api.nvim_win_set_height(bottom_win, 15)
+  filetree.set_contents(bottom_buf_data.ft, bottom_buf_data.ft_st, log)
+
   -- Lock the height against <C-W>= balancing
   vim.wo[bottom_win].winfixheight = true
-
-  bottom_buf_data.diff1_win = diff1_win
-  bottom_buf_data.diff2_win = diff2_win
 
   -- Configure bottom window options (including winfixbuf)
   vim.wo[bottom_win].winfixbuf = true -- Lock window to this buffer
@@ -159,34 +131,11 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.wo[bottom_win].wrap = false
 
   vim.api.nvim_set_current_win(bottom_win)
-  -- display the first entry immediately
-  if #log > 0 then
-    -- due to sorting in the treeview (including sorting folders first), the first path
-    -- in the section may not be the first in the treeview, so use line_to_path to
-    -- find the first displayed path
-    local lowest_idx_line_to_path
-    local l2p = bottom_buf_data.line_to_item
-    for i = 1, vim.api.nvim_buf_line_count(bottom_buf) do
-      if l2p[i] and l2p[i] ~= nil and l2p[i].type == "path" then
-        lowest_idx_line_to_path = i
-        break
-      end
-    end
-    load_entry(bottom_buf, git_root, log[1], bottom_buf_data.line_to_item[lowest_idx_line_to_path])
-    vim.api.nvim_win_set_cursor(bottom_win, { lowest_idx_line_to_path, 0 })
-    -- Force the top of the buffer (line 1) to be visible at the top of the window
-    vim.fn.winrestview({ topline = 1 })
-  else
-    -- no data, display nil buffers
-    load_entry(
-      bottom_buf, git_root, {}, {left_hash = "nil", right_hash = "nil"})
-    vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
-  end
 
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
 
   vim.keymap.set('n', '<CR>', function()
-    filetree.handle_enter(bufdata.get_data(bottom_buf).ft, git_root, bottom_buf)
+    filetree.handle_enter(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
   end, { noremap = true, silent = true, buffer = bottom_buf })
 
   vim.keymap.set('n', 'y', function()
@@ -201,8 +150,8 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
       io_helpers.async_progress("Refreshing log", function()
         local git_log = cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
         vim.schedule(function()
-          bottom_buf_data.log = git_log
-          refresh_bottom_buf(bottom_buf)
+          local bufdata = bufdata.get_data(bottom_buf)
+          filetree.set_contents(bufdata.ft, bufdata.ft_st, git_log)
         end)
       end)
     end)
@@ -222,11 +171,11 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
-      filetree.prev_file(bufdata.get_data(bottom_buf).ft, bottom_buf, git_root)
+      filetree.prev_file(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.next_file, function()
-      filetree.next_file(bufdata.get_data(bottom_buf).ft, bottom_buf, git_root)
+      filetree.next_file(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
 end

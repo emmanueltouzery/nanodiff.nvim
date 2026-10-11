@@ -156,7 +156,7 @@ function M.win_load_buf(git_root, winnr, path, sha)
   end
 end
 
-function M.tree_render_row(prefix, item, is_selected, conflicts_state)
+function M.tree_render_item(prefix, item, is_selected, conflicts_state)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
   local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
