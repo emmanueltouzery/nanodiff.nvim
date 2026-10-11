@@ -1,5 +1,6 @@
 local async = vim.async
 local io_helpers = require("io_helpers")
+local devicons = require'nvim-web-devicons'
 
 local M = {}
 
@@ -153,6 +154,46 @@ function M.win_load_buf(git_root, winnr, path, sha)
       end)
     end):raise_on_error()
   end
+end
+
+function M.tree_render_row(prefix, item, is_selected, conflicts_state)
+  local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
+  local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
+  local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
+  if item.status == "U" then
+    -- git conflict: don't display the +- diffstat, rather the number of conflicts
+    line_info = {
+      {item.status, status_hl},
+      {string.format("%s ", prefix), nil},
+      {icon .. " ", icon_hl_group},
+      {item.path .. " ", path_hl},
+      {conflicts_state.conflicts[item_full_path] ~= nil and #conflicts_state.conflicts[item_full_path] or "", "DiffviewFilePanelConflicts"},
+    }
+  elseif item.orig_path then
+    line_info = {
+      {item.status, status_hl},
+      {string.format("%s ", prefix), nil},
+      {icon .. " ", icon_hl_group},
+      {item.orig_path, nil},
+      {" -> ", nil},
+      {item.path, path_hl},
+      {" +" .. (item.added or 0), "DiffviewFilePanelInsertions"},
+      {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions"},
+    }
+  else
+    line_info = {
+      {item.status, status_hl},
+      {string.format("%s ", prefix), nil},
+      {icon .. " ", icon_hl_group},
+      {item.path .. " ", path_hl},
+    }
+    if item.added ~= nil or item.deleted ~= nil then
+      table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"})
+      table.insert(line_info, {" ", nil})
+      table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"})
+    end
+  end
+  return line_info
 end
 
 return M

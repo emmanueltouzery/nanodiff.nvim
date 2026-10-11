@@ -70,9 +70,9 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
     if bottom_buf_data.selected_item ~= nil and bottom_buf_data.selected_item.section == commit.hash then
       selected_path = bottom_buf_data.selected_item.path
     end
-    local section_sorted_files, sl = filetree.add_section(nil, commit,
+    local section_sorted_files, sl = filetree.add_section(bottom_buf_data.ft, commit,
       lines, bottom_buf_data.line_to_item,
-      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash], false, scroll_win ~= nil
+      selected_path, bottom_buf_data.tree_expand_st[commit.hash], scroll_win ~= nil
     )
     vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
     if sl and selection_line == nil then
@@ -102,6 +102,7 @@ end
 function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.cmd("tabnew")
   local bottom_buf = vim.api.nvim_win_get_buf(0)
+  local bottom_win = vim.api.nvim_get_current_win()
 
   vim.wo.spell = false
 
@@ -113,6 +114,15 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.title = title
   bottom_buf_data.log = log
+  bottom_buf_data.ft = filetree.create_ft({
+    section_get_key = function(s) return s.hash end,
+    section_get_items = function(s) return s.files end,
+    refresh = function(scroll_to_selection) refresh_bottom_buf(bottom_buf, scroll_to_selection and bottom_win or nil) end,
+    render_row = tabcommon.tree_render_row,
+    render_section = format_commit_summary,
+    item_activated = load_entry,
+    expand_default = false,
+  })
   bottom_buf_data.tree_expand_st = {}
 
   if #log > 0 then
@@ -120,7 +130,6 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   end
 
   refresh_bottom_buf(bottom_buf)
-  local bottom_win = vim.api.nvim_get_current_win()
   bottom_buf_data.bottom_win = bottom_win
 
   -- Open a new window above the current one
@@ -177,7 +186,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
 
   vim.keymap.set('n', '<CR>', function()
-    filetree.handle_enter("hash", false, git_root, bottom_buf, refresh_bottom_buf, load_entry)
+    filetree.handle_enter(bufdata.get_data(bottom_buf).ft, git_root, bottom_buf)
   end, { noremap = true, silent = true, buffer = bottom_buf })
 
   vim.keymap.set('n', 'y', function()
@@ -213,11 +222,11 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
-      filetree.prev_file("hash", "files", bottom_buf, git_root, function(bufnr) refresh_bottom_buf(bufnr, bottom_win) end, load_entry)
+      filetree.prev_file(bufdata.get_data(bottom_buf).ft, bottom_buf, git_root)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.next_file, function()
-      filetree.next_file("hash", "files", bottom_buf, git_root, function(bufnr) refresh_bottom_buf(bufnr, bottom_win) end, load_entry)
+      filetree.next_file(bufdata.get_data(bottom_buf).ft, bottom_buf, git_root)
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
 end

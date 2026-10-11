@@ -1,5 +1,4 @@
 local M = {}
-local devicons = require'nvim-web-devicons'
 local bufdata = require('bufdata')
 
 -- local folder_closed = "",
@@ -117,7 +116,7 @@ local function build_tree(items, selected_path)
 end
 
 -- will return the line number of the selected item
-local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path, expand_selected)
+local function render_tree(ft, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path, expand_selected)
   local selection_line = nil
   local function path_append(root, child)
     if root == "" then
@@ -141,7 +140,7 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
       local expand_set = section_expand_st.folder_expanded and section_expand_st.folder_expanded[full_path]
       local expand = expand_set ~= false or expand_selected
       if expand then
-        local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
+        local sl, sp = render_tree(ft, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
         if sl and selection_line == nil then
           selection_line = sl
           selected_path = sp
@@ -149,48 +148,13 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
       end
     else
       local line_info
-      local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
       local item_full_path = path_append(full_path, item.path)
       local is_selected = item_full_path == selected_path
       if is_selected then
         selection_line = #lines+1
         selected_path = item_full_path
       end
-      local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
-      local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
-      if item.status == "U" then
-        -- git conflict: don't display the +- diffstat, rather the number of conflicts
-        line_info = {
-          {item.status, status_hl},
-          {string.format("%s ", prefix), nil},
-          {icon .. " ", icon_hl_group},
-          {item.path .. " ", path_hl},
-          {conflicts_state.conflicts[item_full_path] ~= nil and #conflicts_state.conflicts[item_full_path] or "", "DiffviewFilePanelConflicts"},
-        }
-      elseif item.orig_path then
-        line_info = {
-          {item.status, status_hl},
-          {string.format("%s ", prefix), nil},
-          {icon .. " ", icon_hl_group},
-          {item.orig_path, nil},
-          {" -> ", nil},
-          {item.path, path_hl},
-          {" +" .. (item.added or 0), "DiffviewFilePanelInsertions"},
-          {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions"},
-        }
-      else
-        line_info = {
-          {item.status, status_hl},
-          {string.format("%s ", prefix), nil},
-          {icon .. " ", icon_hl_group},
-          {item.path .. " ", path_hl},
-        }
-        if item.added ~= nil or item.deleted ~= nil then
-          table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"})
-          table.insert(line_info, {" ", nil})
-          table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"})
-        end
-      end
+      local line_info = ft.render_row(prefix, item, is_selected)
       line_to_item[#lines+1] = {type = "path", path = item_full_path}
       if item.left_sha then
         line_to_item[#lines+1].left_sha = item.left_sha -- used for untracked files
@@ -216,13 +180,33 @@ local function tree_collect_files(nodes, prefix, acc)
     return acc
 end
 
+function M.create_ft(params)
+  return {
+    section_get_key = params.section_get_key,
+    section_get_items = params.section_get_items,
+    refresh = params.refresh, --(scroll_to_selection)
+    render_row = params.render_row, -- TODO rename to render_item
+    render_section = params.render_section,
+    item_activated = params.item_activated,
+    expand_default = params.expand_default,
+  }
+end
+
+-- tree_st
+-- lines, line_to_item, selected_path, section_expand_st, 
+
+-- add_section
+ -- section_obj, items, section_expand_default, expand_selected
+
 -- will return the files in display order (including not-displayed files due to collapsed folders) and line number of the selected item
 -- TODO if add_section always renders even collapsed folders, don't
 -- call it for every refresh, only call render_tree again
-function M.add_section(conflicts_state, section_obj, lines, line_to_item,
-    header, items, selected_path, section_expand_st, section_expand_default, expand_selected)
+function M.add_section(ft, section_obj, lines, line_to_item,
+    selected_path, section_expand_st, expand_selected)
+  local items = ft.section_get_items(section_obj)
   if #items == 0 and not section_obj.always_show then return {}, nil end
 
+  local header = ft.render_section(section_obj, selected_path)
   line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
   table.insert(lines, header)
 
@@ -230,14 +214,14 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
 
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
   local expanded = nil
-  if section_expand_default or selected_path ~= nil then
+  if ft.expand_default or selected_path ~= nil then
     expanded = expand_set ~= false or expand_selected
   else
     expanded = expand_set == true
   end
   local selection_line = nil
   if expanded then
-    selection_line = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
+    selection_line = render_tree(ft, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
   end
   return tree_collect_files(tree, "", {}), selection_line
 end
@@ -265,16 +249,16 @@ function M.get_cur_section_item(bufnr)
   return section, item
 end
 
-function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, load_entry)
+function M.next_file(ft, bufnr, git_root)
   local bdata = bufdata.get_data(bufnr)
 
   local next = false
   for i, file in ipairs(bdata.sorted_files) do
     if next then
       bdata.selected_item = file
-      refresh(bufnr)
+      ft.refresh(bufnr, true)
       local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-      load_entry(bufnr, git_root, section, item, true)
+      ft.item_activated(bufnr, git_root, section, item, true)
       return
     end
     if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
@@ -283,12 +267,12 @@ function M.next_file(section_key, section_items_key, bufnr, git_root, refresh, l
   end
   -- didn't find, presumably got past the end, select the first
   bdata.selected_item = bdata.sorted_files[1]
-  refresh(bufnr)
+  ft.refresh(true)
   local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-  load_entry(bufnr, git_root, section, item, true)
+  ft.item_activated(bufnr, git_root, section, item, true)
 end
 
-function M.prev_file(section_key, section_items_key, bufnr, git_root, refresh, load_entry)
+function M.prev_file(ft, bufnr, git_root)
   local bdata = bufdata.get_data(bufnr)
 
   local prev = false
@@ -296,9 +280,9 @@ function M.prev_file(section_key, section_items_key, bufnr, git_root, refresh, l
     local file = bdata.sorted_files[i]
     if prev then
       bdata.selected_item = file
-      refresh(bufnr)
+      ft.refresh(bufnr, true)
       local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-      load_entry(bufnr, git_root, section, item, true)
+      ft.item_activated(bufnr, git_root, section, item, true)
       return
     end
     if file.path == bdata.selected_item.path and file.section == bdata.selected_item.section then
@@ -307,17 +291,17 @@ function M.prev_file(section_key, section_items_key, bufnr, git_root, refresh, l
   end
   -- didn't find, presumably got past the start, select the last
   bdata.selected_item = bdata.sorted_files[#bdata.sorted_files]
-  refresh(bufnr)
+  ft.refresh(true)
   local section, item = M.get_cur_section_item(bufnr) -- TODO dodgy: we rely on refresh() moving the cursor to the item
-  load_entry(bufnr, git_root, section, item, true)
+  ft.item_activated(bufnr, git_root, section, item, true)
 end
 
-function M.handle_enter(section_key, section_expand_default, git_root, bufnr, refresh, load_entry)
+function M.handle_enter(ft, git_root, bufnr)
   local section, item = M.get_cur_section_item(bufnr)
   if item == nil then
     return
   end
-  local section_key_val = section[section_key]
+  local section_key_val = ft.section_get_key(section)
   local bdata = bufdata.get_data(bufnr)
 
   if item.type == "dir" then
@@ -329,19 +313,19 @@ function M.handle_enter(section_key, section_expand_default, git_root, bufnr, re
       prev_expanded = true
     end
     folder_expanded[item.path] = not prev_expanded
-    refresh(bufnr)
+    ft.refresh(false)
   elseif item.type == "section" then
     if bdata.tree_expand_st[section_key_val] == nil then
       bdata.tree_expand_st[section_key_val] = {}
     end
     local prev_expanded = bdata.tree_expand_st[section_key_val].section_expanded
     if prev_expanded == nil then
-      prev_expanded = section_expand_default
+      prev_expanded = ft.expand_default
     end
     bdata.tree_expand_st[section_key_val].section_expanded = not prev_expanded
-    refresh(bufnr)
+    ft.refresh(false)
   elseif item.type == "path" then
-    load_entry(bufnr, git_root, section, item)
+    ft.item_activated(bufnr, git_root, section, item)
   end
 end
 
