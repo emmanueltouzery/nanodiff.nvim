@@ -117,7 +117,7 @@ local function build_tree(items, selected_path)
 end
 
 -- will return the line number of the selected item
-local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
+local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path, expand_selected)
   local selection_line = nil
   local function path_append(root, child)
     if root == "" then
@@ -139,9 +139,9 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         {item.path, "DiffviewFolderName"},
       })
       local expand_set = section_expand_st.folder_expanded and section_expand_st.folder_expanded[full_path]
-      local expand = expand_set ~= false
+      local expand = expand_set ~= false or expand_selected
       if expand then
-        local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
+        local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
         if sl and selection_line == nil then
           selection_line = sl
           selected_path = sp
@@ -220,7 +220,7 @@ end
 -- TODO if add_section always renders even collapsed folders, don't
 -- call it for every refresh, only call render_tree again
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
-    header, items, selected_path, section_expand_st, section_expand_default)
+    header, items, selected_path, section_expand_st, section_expand_default, expand_selected)
   if #items == 0 and not section_obj.always_show then return {}, nil end
 
   line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
@@ -231,13 +231,13 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
   local expanded = nil
   if section_expand_default or selected_path ~= nil then
-    expanded = expand_set ~= false
+    expanded = expand_set ~= false or expand_selected
   else
     expanded = expand_set == true
   end
   local selection_line = nil
   if expanded then
-    selection_line = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
+    selection_line = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
   end
   return tree_collect_files(tree, "", {}), selection_line
 end

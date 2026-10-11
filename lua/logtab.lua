@@ -72,7 +72,7 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
     end
     local section_sorted_files, sl = filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
-      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash], false
+      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash], false, scroll_win ~= nil
     )
     vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
     if sl and selection_line == nil then

@@ -28,7 +28,7 @@ local function refresh_left_buf(left_buf, scroll_win)
     local section_sorted_files, sl = filetree.add_section(left_buf_data.conflicts_state, section,
       lines, left_buf_data.line_to_item,
       {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} },
-      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true
+      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true, scroll_win ~= nil
     )
     if section_sorted_files then
       vim.list_extend(left_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = section.title} end, section_sorted_files))
