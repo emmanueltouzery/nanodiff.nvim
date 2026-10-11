@@ -53,6 +53,8 @@ local function format_commit_summary(commit, has_selection)
   }
 end
 
+-- if you pass in the scroll_win, the cursor will be moved to
+-- the selected item after displaying
 local function refresh_bottom_buf(bottom_buf, scroll_win)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   local lines = {
@@ -70,8 +72,7 @@ local function refresh_bottom_buf(bottom_buf, scroll_win)
     end
     local section_sorted_files, sl = filetree.add_section(nil, commit,
       lines, bottom_buf_data.line_to_item,
-      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash],
-      false, scroll_win ~= nil
+      format_commit_summary(commit, selected_path), commit.files, selected_path, bottom_buf_data.tree_expand_st[commit.hash], false
     )
     vim.list_extend(bottom_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = commit.hash} end, section_sorted_files))
     if sl and selection_line == nil then
@@ -94,7 +95,7 @@ local function load_entry(bottom_buf, git_root, commit, item, skip_refresh_botto
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff1_win, item.path, item.left_sha or commit.hash .. "^")
   tabcommon.win_load_buf(git_root, bottom_buf_data.diff2_win, item.path, item.right_sha or commit.hash)
   if not skip_refresh_bottom_buf then
-    refresh_bottom_buf(bottom_buf)
+    refresh_bottom_buf(bottom_buf, bottom_buf_data.bottom_win)
   end
 end
 
@@ -120,6 +121,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   refresh_bottom_buf(bottom_buf)
   local bottom_win = vim.api.nvim_get_current_win()
+  bottom_buf_data.bottom_win = bottom_win
 
   -- Open a new window above the current one
   local diff1_win = vim.api.nvim_open_win(0, true, {

@@ -117,8 +117,7 @@ local function build_tree(items, selected_path)
 end
 
 -- will return the line number of the selected item
-local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path, reveal_selected)
--- print("render_tree selected_path: " .. vim.inspect(selected_path))
+local function render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, tree, depth, full_path)
   local selection_line = nil
   local function path_append(root, child)
     if root == "" then
@@ -139,11 +138,10 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      local expand = (reveal_selected and item.is_selected)
-        or section_expand_st.folder_expanded == nil
-        or section_expand_st.folder_expanded[full_path] ~= false
+      local expand_set = section_expand_st.folder_expanded ~= nil and section_expand_st.folder_expanded[full_path] or nil
+      local expand =  expand_set ~= false
       if expand then
-        local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path, reveal_selected)
+        local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
         if sl and selection_line == nil then
           selection_line = sl
           selected_path = sp
@@ -222,7 +220,7 @@ end
 -- TODO if add_section always renders even collapsed folders, don't
 -- call it for every refresh, only call render_tree again
 function M.add_section(conflicts_state, section_obj, lines, line_to_item,
-    header, items, selected_path, section_expand_st, section_expand_default, reveal_selected)
+    header, items, selected_path, section_expand_st, section_expand_default)
   if #items == 0 and not section_obj.always_show then return {}, nil end
 
   line_to_item[#lines+1] = {type = "section", header = header, section_obj = section_obj}
@@ -231,13 +229,17 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
   local tree = build_tree(items, selected_path)
 
   local expanded = section_expand_default or false
-  if section_expand_st ~= nil then
-    expanded = section_expand_st.section_expanded
+  local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
+  if selected_path ~= nil then
+    -- the selected item is in this session, always show unless
+    -- the user explicitly closed it
+    expanded = expand_set ~= false
+  else
+    expanded = expand_set == true
   end
-  expanded = expanded or (reveal_selected and selected_path ~= nil) -- if the selected item is in this section, always expand
   local selection_line = nil
   if expanded then
-    selection_line = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "", reveal_selected)
+    selection_line = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st or {}, tree, 1, "")
   end
   return tree_collect_files(tree, "", {}), selection_line
 end

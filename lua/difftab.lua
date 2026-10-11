@@ -8,6 +8,8 @@ local index_watcher = require('index_watcher')
 
 local M = {}
 
+-- if you pass in the scroll_win, the cursor will be moved to
+-- the selected item after displaying
 local function refresh_left_buf(left_buf, scroll_win)
   local lines = {}
   local left_buf_data = bufdata.get_data(left_buf)
@@ -26,7 +28,7 @@ local function refresh_left_buf(left_buf, scroll_win)
     local section_sorted_files, sl = filetree.add_section(left_buf_data.conflicts_state, section,
       lines, left_buf_data.line_to_item,
       {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} },
-      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true, scroll_win ~= nil
+      section.contents, selected_path, left_buf_data.tree_expand_st[section.title], true
     )
     if section_sorted_files then
       vim.list_extend(left_buf_data.sorted_files, vim.tbl_map(function(p) return {path = p, section = section.title} end, section_sorted_files))
@@ -103,7 +105,7 @@ local function load_entry(left_buf, git_root, section, item)
   end
   tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
   tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, item.path, item.right_sha or section.right_sha)
-  refresh_left_buf(left_buf)
+  refresh_left_buf(left_buf, left_buf_data.left_win)
 end
 
 local function left_buf_handle_enter(git_root, bufnr)
@@ -147,6 +149,7 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   refresh_left_buf(left_buf)
 
   local left_win = vim.api.nvim_get_current_win()
+  left_buf_data.left_win = left_win
 
   -- Split to create the right window
   vim.cmd("rightbelow vsplit")
