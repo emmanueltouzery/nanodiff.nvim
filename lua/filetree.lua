@@ -138,8 +138,8 @@ local function render_tree(conflicts_state, lines, line_to_item, selected_path, 
         {folder_open, "DiffviewFolderSign"},
         {item.path, "DiffviewFolderName"},
       })
-      local expand_set = section_expand_st.folder_expanded ~= nil and section_expand_st.folder_expanded[full_path] or nil
-      local expand =  expand_set ~= false
+      local expand_set = section_expand_st.folder_expanded and section_expand_st.folder_expanded[full_path]
+      local expand = expand_set ~= false
       if expand then
         local sl, sp = render_tree(conflicts_state, lines, line_to_item, selected_path, section_expand_st, item.subs, depth + 1, full_path)
         if sl and selection_line == nil then
@@ -228,11 +228,9 @@ function M.add_section(conflicts_state, section_obj, lines, line_to_item,
 
   local tree = build_tree(items, selected_path)
 
-  local expanded = section_expand_default or false
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
-  if selected_path ~= nil then
-    -- the selected item is in this session, always show unless
-    -- the user explicitly closed it
+  local expanded = nil
+  if section_expand_default or selected_path ~= nil then
     expanded = expand_set ~= false
   else
     expanded = expand_set == true
