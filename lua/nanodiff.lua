@@ -138,7 +138,11 @@ function M.status(opts)
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local status = get_diff_status(git_root)
     vim.schedule(function()
-      difftab.open_diff_tab(status, git_root, get_diff_status, opts)
+      if vim.iter(status):all(function(item) return #item.contents == 0 end) then
+        vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
+      else
+        difftab.open_diff_tab(status, git_root, get_diff_status, opts)
+      end
     end)
   end)
 end

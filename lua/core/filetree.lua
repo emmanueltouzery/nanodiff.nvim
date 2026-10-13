@@ -265,9 +265,11 @@ function M.set_contents(ft, ft_st, data)
   ft_st.sorted_files = {}
 
   if #data > 0 then
-    -- expand the first section if any
-    -- TODO first section may be empty?
-    ft_st.tree_expand_st[ft.section_get_key(data[1])] = {section_expanded = true}
+    -- expand the first non-empty section
+    local fst_non_empty_idx, _ = vim.iter(ipairs(data)):find(
+      function(_, s) return #ft.section_get_items(s) > 0 end
+    )
+    ft_st.tree_expand_st[ft.section_get_key(data[fst_non_empty_idx])] = {section_expanded = true}
   end
 
   for _, section in ipairs(data) do

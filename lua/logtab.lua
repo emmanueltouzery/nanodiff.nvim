@@ -115,7 +115,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     local section, item = filetree.get_cur_section_item(bottom_buf)
     local hash = section.hash
     vim.fn.setreg("+", hash)
-    vim.notify("Copied '" .. hash .. "' to the clipboard")
+    vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
   end, { noremap = true, silent = true, buffer = bottom_buf })
 
   vim.keymap.set('n', 'g!', function()
