@@ -1,8 +1,8 @@
 -- inspired by mini.diff's index watcher
 local async = vim.async
 
-local bufdata = require("bufdata")
-local io_helpers = require("io_helpers")
+local bufdata = require("core.bufdata")
+local io_helpers = require("core.io_helpers")
 
 local M = {}
 

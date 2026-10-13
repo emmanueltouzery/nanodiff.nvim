@@ -2,7 +2,7 @@ local async = vim.async
 local difftab = require('difftab')
 local log = require('log')
 local conflicts = require('conflicts')
-local io_helpers = require('io_helpers')
+local io_helpers = require('core.io_helpers')
 
 local M = {
   log = log.display_log,

@@ -1,15 +1,7 @@
-local filetree = require('filetree')
-local bufdata = require('bufdata')
+local filetree = require('core.filetree')
+local bufdata = require('core.bufdata')
 
 local M = {}
-
-local options = {
-  { "=a", "Search authors", "--author=" },
-  { "=g", "Search commit message", "--grep=" },
-  { "=G", "Search changes", "-G" },
-  { "=B", "Before date", "--before=" },
-  { "=A", "After date", "--after=" },
-}
 
 local function refresh_modal(bufnr, bottom_buf_data)
   local lines = {
@@ -35,7 +27,7 @@ local function refresh_modal(bufnr, bottom_buf_data)
   return #lines
 end
 
-function M.open_filtering_modal(bottom_buf, refresh_bottom_buf)
+function M.open_filtering_modal(bottom_buf, options, refresh_bottom_buf)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   if bottom_buf_data.search_settings == nil then
     bottom_buf_data.search_settings = {}

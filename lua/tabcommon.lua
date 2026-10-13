@@ -1,66 +1,18 @@
 local async = vim.async
-local io_helpers = require("io_helpers")
-local devicons = require'nvim-web-devicons'
+local io_helpers = require("core.io_helpers")
+local devicons = require("nvim-web-devicons")
+local difflayout = require("core.difflayout")
 
 local M = {}
 
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
-
-local function win_set_diff(winnr)
-  -- without scope=local any popups opening over the window will inherit the diff flag,
-  -- completely breaking the diff
-  vim.api.nvim_set_option_value('diff', true, { win = winnr, scope = 'local' })
-  vim.api.nvim_set_option_value('scrollbind', true, { win = winnr, scope = 'local' })
-  vim.api.nvim_set_option_value('foldmethod', 'diff', { win = winnr, scope = 'local' })
-  vim.api.nvim_set_option_value('foldlevel', 0, { win = winnr, scope = 'local' })
-  vim.api.nvim_set_option_value('foldenable', true, { win = winnr, scope = 'local' })
-end
-
-local function win_load_null_file(winnr)
-  local bufname = "git://null"
-  local bufnr = vim.fn.bufnr(bufname)
-  if bufnr == -1 then
-    bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
-    vim.api.nvim_buf_set_name(bufnr, bufname)
-    vim.bo[bufnr].bufhidden = "wipe"
-  end
-  vim.api.nvim_win_set_buf(winnr, bufnr)
-  win_set_diff(winnr)
-end
-
-local function win_load_disk_file(winnr, path)
-  async.run(function()
-    -- the path may be a git path, but maybe neovim's current folder is not
-    -- the repo's root
-    if not vim.uv.fs_access(path, "R") then
-      local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
-      path = vim.fs.joinpath(git_root, path)
-    end
-    vim.schedule(function()
-      local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
-      if not vim.api.nvim_buf_is_loaded(bufnr) then
-        -- we know it's our buffer since it's not loaded.
-        -- wouldn't want to do that on the user's buffers
-        vim.bo[bufnr].bufhidden = "wipe"
-      end
-      vim.fn.bufload(bufnr)
-      vim.bo[bufnr].buflisted = true
-      vim.api.nvim_win_set_buf(winnr, bufnr)
-      win_set_diff(winnr)
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "NanodiffDiskBufferLoaded",
-        data = { path = path },
-      })
-    end)
-  end):raise_on_error()
-end
 
 local function win_load_sha_file(winnr, git_root, path, sha)
   local bufname = string.format("git://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
-    win_set_diff(winnr)
+    difflayout.win_set_diff(winnr)
   else
     async.run(function()
       -- gsub: remove extra newline from git show
@@ -86,7 +38,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
         vim.bo[bufnr].bufhidden = "wipe"
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
-        win_set_diff(winnr)
+        difflayout.win_set_diff(winnr)
       end)
     end):raise_on_error()
   end
@@ -125,7 +77,7 @@ function M.win_load_buf(git_root, winnr, path, sha)
   vim.wo[winnr].scrollbind = false
 
   if sha == "nil" then
-    win_load_null_file(winnr)
+    difflayout.win_load_null_file(winnr)
     -- if we don't force the line number to zero, neovim
     -- might reposition the file at the last-remembered line number
     -- for that file
@@ -141,9 +93,19 @@ function M.win_load_buf(git_root, winnr, path, sha)
       end
       vim.schedule(function()
         if not is_display then
-          win_load_null_file(winnr)
+          difflayout.win_load_null_file(winnr)
         elseif sha == "disk" then
-          win_load_disk_file(winnr, path)
+          async.run(function()
+            -- the path may be a git path, but maybe neovim's current folder is not
+            -- the repo's root
+            if not vim.uv.fs_access(path, "R") then
+              local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
+              path = vim.fs.joinpath(git_root, path)
+            end
+            vim.schedule(function()
+              difflayout.win_load_disk_file(winnr, path)
+            end)
+          end):raise_on_error()
         else
           win_load_sha_file(winnr, git_root, path, sha)
         end

@@ -1,8 +1,9 @@
-local filetree = require('filetree')
+local filetree = require('core.filetree')
 local tabcommon = require('tabcommon')
-local bufdata = require('bufdata')
-local log_filter = require('log_filter')
-local io_helpers = require('io_helpers')
+local bufdata = require('core.bufdata')
+local log_filter = require('core.log_filter')
+local io_helpers = require('core.io_helpers')
+local difflayout = require('core.difflayout')
 local async = vim.async
 
 local M = {}
@@ -78,13 +79,6 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   local bottom_buf = vim.api.nvim_win_get_buf(0)
   local bottom_win = vim.api.nvim_get_current_win()
 
-  vim.wo.spell = false
-
-  vim.bo[bottom_buf].buftype = "nofile"
-  vim.bo[bottom_buf].bufhidden = "wipe"
-  vim.bo[bottom_buf].swapfile = false
-  vim.bo[bottom_buf].filetype = "NanodiffFiles"
-
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   bottom_buf_data.bottom_win = bottom_win
   bottom_buf_data.title = title
@@ -105,30 +99,9 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     winnr = bottom_win,
   })
 
-  -- Open a new window above the current one
-  bottom_buf_data.diff1_win = vim.api.nvim_open_win(0, true, {
-    split = 'above',
-    win = current_win,
-  })
-
-  -- Split that new window vertically to create the top-right window
-  bottom_buf_data.diff2_win = vim.api.nvim_open_win(0, true, {
-    split = 'right',
-    win = top_left_win,
-  })
-  vim.api.nvim_win_resize(bottom_win, -1, 15)
+  difflayout.setup_log_tab_layout(bottom_buf)
 
   filetree.set_contents(bottom_buf_data.ft, bottom_buf_data.ft_st, log)
-
-  -- Lock the height against <C-W>= balancing
-  vim.wo[bottom_win].winfixheight = true
-
-  -- Configure bottom window options (including winfixbuf)
-  vim.wo[bottom_win].winfixbuf = true -- Lock window to this buffer
-  vim.wo[bottom_win].number = false
-  vim.wo[bottom_win].relativenumber = false
-  vim.wo[bottom_win].signcolumn = "no"
-  vim.wo[bottom_win].wrap = false
 
   vim.api.nvim_set_current_win(bottom_win)
 
@@ -146,7 +119,14 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   end, { noremap = true, silent = true, buffer = bottom_buf })
 
   vim.keymap.set('n', 'g!', function()
-    log_filter.open_filtering_modal(bottom_buf, function()
+    local log_filter_options = {
+      { "=a", "Search authors", "--author=" },
+      { "=g", "Search commit message", "--grep=" },
+      { "=G", "Search changes", "-G" },
+      { "=B", "Before date", "--before=" },
+      { "=A", "After date", "--after=" },
+    }
+    log_filter.open_filtering_modal(bottom_buf, options, function()
       io_helpers.async_progress("Refreshing log", function()
         local git_log = cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
         vim.schedule(function()

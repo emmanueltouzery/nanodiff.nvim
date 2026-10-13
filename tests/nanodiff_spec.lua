@@ -1,5 +1,5 @@
 vim.opt.rtp:append(".")
-local filetree = require("filetree")
+local filetree = require("core.filetree")
 
 print("Running tests...")
 

@@ -1,7 +1,7 @@
 local async = vim.async
 
 local logtab = require('logtab')
-local io_helpers = require('io_helpers')
+local io_helpers = require('core.io_helpers')
 
 local M = {}
 

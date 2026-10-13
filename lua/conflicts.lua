@@ -1,4 +1,4 @@
-local io_helpers = require("io_helpers")
+local io_helpers = require("core.io_helpers")
 local index_watcher = require("index_watcher")
 
 local M = {}
