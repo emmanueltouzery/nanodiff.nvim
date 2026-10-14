@@ -69,14 +69,15 @@ function M.register_watchers(conflicts_section, conflicts_state, refresh)
     callback = function(args)
       if conflicts_path[args.data.path] then
         local path = args.data.path
-        refresh_conflicts(args.buf, path, conflicts_state, refresh)
+        local buf = args.data.buf
+        refresh_conflicts(buf, path, conflicts_state, refresh)
 
         -- register a buffer write watcher to update the conflicts count and refresh the sidebar
         vim.api.nvim_create_autocmd("BufWritePost", {
           group = augroup,
-          buffer = args.buf,
+          buffer = args.data.buf,
           callback = function(args)
-            refresh_conflicts(args.buf, path, conflicts_state, refresh)
+            refresh_conflicts(buf, path, conflicts_state, refresh)
           end,
         })
       end

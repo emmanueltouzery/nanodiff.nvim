@@ -144,7 +144,7 @@ local function render_tree(ft, ft_st, selected_path, section_expand_st, tree, de
         selection_line = #ft_st.lines+1
         selected_path = item_full_path
       end
-      local line_info = ft.render_item(prefix, item, is_selected)
+      local line_info = ft.render_item(prefix, item, is_selected, {item_full_path = item_full_path})
       ft_st.line_to_item[#ft_st.lines+1] = {type = "path", path = item_full_path}
       if item.left_sha then
         ft_st.line_to_item[#ft_st.lines+1].left_sha = item.left_sha -- used for untracked files

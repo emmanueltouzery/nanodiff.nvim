@@ -39,7 +39,7 @@ function M.win_load_disk_file(winnr, path)
   M.win_set_diff(winnr)
   vim.api.nvim_exec_autocmds("User", {
     pattern = "NanodiffDiskBufferLoaded",
-    data = { path = path },
+    data = { path = path, buf = bufnr },
   })
 end
 

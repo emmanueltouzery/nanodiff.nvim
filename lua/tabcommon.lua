@@ -118,7 +118,7 @@ function M.win_load_buf(git_root, winnr, path, sha)
   end
 end
 
-function M.tree_render_item(prefix, item, is_selected, conflicts_state)
+function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
   local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
@@ -129,7 +129,10 @@ function M.tree_render_item(prefix, item, is_selected, conflicts_state)
       {string.format("%s ", prefix), nil},
       {icon .. " ", icon_hl_group},
       {item.path .. " ", path_hl},
-      {conflicts_state.conflicts[item_full_path] ~= nil and #conflicts_state.conflicts[item_full_path] or "", "DiffviewFilePanelConflicts"},
+      {conflicts_state.conflicts[extra.item_full_path] ~= nil
+        and #conflicts_state.conflicts[extra.item_full_path]
+        or "",
+      "DiffviewFilePanelConflicts"},
     }
   elseif item.orig_path then
     line_info = {
