@@ -2,6 +2,7 @@ local async = vim.async
 
 local logtab = require('logtab')
 local io_helpers = require('core.io_helpers')
+local options = require('core.options')
 
 local M = {}
 
@@ -96,18 +97,12 @@ local function display_log_cmd(title, cmd_fn, opts)
 end
 
 function M.display_log(opts)
-  opts = opts or {}
+  opts = options.apply_option_defaults(opts, options.get_log_options())
   local single_file_path = opts.path
   local buf = opts.buf
   if type(buf) == "number" then
     single_file_path = vim.api.nvim_buf_get_name(buf)
   end
-  opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
-  opts.shortcuts = opts.shortcuts or {}
-  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
-  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
-  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
-  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
   display_log_cmd("Log view", function(git_root, extra_params)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
@@ -132,13 +127,7 @@ function M.display_log(opts)
 end
 
 function M.display_stashes(opts)
-  opts = opts or {}
-  opts.relative_date_cutoff_seconds = opts.relative_date_cutoff_seconds or 3 * 24 * 60 * 60
-  opts.shortcuts = opts.shortcuts or {}
-  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
-  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
-  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
-  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
+  opts = options.apply_option_defaults(opts, options.get_log_options())
   display_log_cmd("Stashes", function(git_root, extra_params)
     local cmd = vim.iter({
       { "git", "-P",

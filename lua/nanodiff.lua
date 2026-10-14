@@ -3,6 +3,7 @@ local difftab = require('difftab')
 local log = require('log')
 local conflicts = require('conflicts')
 local io_helpers = require('core.io_helpers')
+local options = require('core.options')
 
 local M = {
   log = log.display_log,
@@ -128,12 +129,7 @@ local function get_diff_status(git_root)
 end
 
 function M.status(opts)
-  opts = opts or {}
-  opts.shortcuts = opts.shortcuts or {}
-  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
-  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
-  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
-  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
+  opts = options.apply_option_defaults(opts, options.get_diff_options())
   io_helpers.async_progress("Loading git status", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local status = get_diff_status(git_root)
@@ -248,12 +244,7 @@ local function revspec_display_commits_popup(git_root, left_buf, revspec)
 end
 
 function M.revspec(revspec, opts)
-  opts = opts or {}
-  opts.shortcuts = opts.shortcuts or {}
-  opts.shortcuts.fwd = opts.shortcuts.fwd or "<C-f>"
-  opts.shortcuts.bwd = opts.shortcuts.bwd or "<C-b>"
-  opts.shortcuts.prev_file = opts.shortcuts.prev_file or "<S-Tab>"
-  opts.shortcuts.next_file = opts.shortcuts.next_file or "<Tab>"
+  opts = options.apply_option_defaults(opts, options.get_diff_options())
   io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
     local revspec, contents = get_diff_revspec(git_root, revspec)

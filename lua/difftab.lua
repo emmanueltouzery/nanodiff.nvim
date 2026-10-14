@@ -6,6 +6,7 @@ local tabcommon = require('tabcommon')
 local bufdata = require('core.bufdata')
 local conflicts = require('conflicts')
 local index_watcher = require('index_watcher')
+local options = require('core.options')
 
 local M = {}
 
@@ -81,27 +82,35 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
 
-  vim.keymap.set('n', '<CR>', function()
-    filetree.handle_enter(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
-  end, { noremap = true, silent = true, buffer = left_buf })
+  if opts.shortcuts.activate then
+    vim.keymap.set('n', opts.shortcuts.activate, function()
+      filetree.handle_enter(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
 
-  if opts.shortcuts.fwd then
-    vim.keymap.set('n', opts.shortcuts.bwd, function()
+  if opts.shortcuts.scroll_backward then
+    vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
       vim.api.nvim_win_call(bufdata.get_data(left_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-b>"))
       end)
     end, { noremap = true, silent = true, buffer = left_buf })
+  end
 
-    vim.keymap.set('n', opts.shortcuts.fwd, function()
+  if opts.shortcuts.scroll_forward then
+    vim.keymap.set('n', opts.shortcuts.scroll_forward, function()
       vim.api.nvim_win_call(bufdata.get_data(left_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
     end, { noremap = true, silent = true, buffer = left_buf })
+  end
 
+  if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
       filetree.prev_file(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
     end, { noremap = true, silent = true, buffer = left_buf })
+  end
 
+  if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
     end, { noremap = true, silent = true, buffer = left_buf })

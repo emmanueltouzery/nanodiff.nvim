@@ -107,53 +107,65 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
 
-  vim.keymap.set('n', '<CR>', function()
-    filetree.handle_enter(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
-  end, { noremap = true, silent = true, buffer = bottom_buf })
+  if opts.shortcuts.activate then
+    vim.keymap.set('n', opts.shortcuts.activate, function()
+      filetree.handle_enter(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
-  vim.keymap.set('n', 'y', function()
-    local section, item = filetree.get_cur_section_item(bottom_buf)
-    local hash = section.hash
-    vim.fn.setreg("+", hash)
-    vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
-  end, { noremap = true, silent = true, buffer = bottom_buf })
+  if opts.shortcuts.yank_commit then
+    vim.keymap.set('n', opts.shortcuts.yank_commit, function()
+      local section, item = filetree.get_cur_section_item(bottom_buf)
+      local hash = section.hash
+      vim.fn.setreg("+", hash)
+      vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
-  vim.keymap.set('n', 'g!', function()
-    local log_filter_options = {
-      { "=a", "Search authors", "--author=" },
-      { "=g", "Search commit message", "--grep=" },
-      { "=G", "Search changes", "-G" },
-      { "=B", "Before date", "--before=" },
-      { "=A", "After date", "--after=" },
-    }
-    log_filter.open_filtering_modal(bottom_buf, options, function()
-      io_helpers.async_progress("Refreshing log", function()
-        local git_log = cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
-        vim.schedule(function()
-          local bufdata = bufdata.get_data(bottom_buf)
-          filetree.set_contents(bufdata.ft, bufdata.ft_st, git_log)
+  if opts.shortcuts.filters then
+    vim.keymap.set('n', opts.shortcuts.filters, function()
+      local log_filter_options = {
+        { "=a", "Search authors", "--author=" },
+        { "=g", "Search commit message", "--grep=" },
+        { "=G", "Search changes", "-G" },
+        { "=B", "Before date", "--before=" },
+        { "=A", "After date", "--after=" },
+      }
+      log_filter.open_filtering_modal(bottom_buf, options, function()
+        io_helpers.async_progress("Refreshing log", function()
+          local git_log = cmd_fn(git_root, vim.tbl_values(bottom_buf_data.search_settings))
+          vim.schedule(function()
+            local bufdata = bufdata.get_data(bottom_buf)
+            filetree.set_contents(bufdata.ft, bufdata.ft_st, git_log)
+          end)
         end)
       end)
-    end)
-  end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
-  if opts.shortcuts.fwd then
-    vim.keymap.set('n', opts.shortcuts.bwd, function()
+  if opts.shortcuts.scroll_backward then
+    vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
       vim.api.nvim_win_call(bufdata.get_data(bottom_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-b>"))
       end)
     end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
-    vim.keymap.set('n', opts.shortcuts.fwd, function()
+  if opts.shortcuts.scroll_forward then
+    vim.keymap.set('n', opts.shortcuts.scroll_forward, function()
       vim.api.nvim_win_call(bufdata.get_data(bottom_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
     end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
+  if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
       filetree.prev_file(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
     end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 
+  if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(bufdata.get_data(bottom_buf).ft, bufdata.get_data(bottom_buf).ft_st)
     end, { noremap = true, silent = true, buffer = bottom_buf })
