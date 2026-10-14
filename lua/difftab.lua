@@ -87,13 +87,13 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
 
   if opts.shortcuts.fwd then
     vim.keymap.set('n', opts.shortcuts.bwd, function()
-      vim.api.nvim_win_call(diff1_win, function()
+      vim.api.nvim_win_call(bufdata.get_data(left_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-b>"))
       end)
     end, { noremap = true, silent = true, buffer = left_buf })
 
     vim.keymap.set('n', opts.shortcuts.fwd, function()
-      vim.api.nvim_win_call(diff1_win, function()
+      vim.api.nvim_win_call(bufdata.get_data(left_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
     end, { noremap = true, silent = true, buffer = left_buf })

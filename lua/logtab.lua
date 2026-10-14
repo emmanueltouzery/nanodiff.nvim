@@ -139,13 +139,13 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   if opts.shortcuts.fwd then
     vim.keymap.set('n', opts.shortcuts.bwd, function()
-      vim.api.nvim_win_call(diff1_win, function()
+      vim.api.nvim_win_call(bufdata.get_data(bottom_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-b>"))
       end)
     end, { noremap = true, silent = true, buffer = bottom_buf })
 
     vim.keymap.set('n', opts.shortcuts.fwd, function()
-      vim.api.nvim_win_call(diff1_win, function()
+      vim.api.nvim_win_call(bufdata.get_data(bottom_buf).diff1_win, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
     end, { noremap = true, silent = true, buffer = bottom_buf })
