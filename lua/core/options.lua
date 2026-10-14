@@ -22,8 +22,11 @@ function M.get_log_options()
   })
 end
 
-function M.get_diff_options()
+function M.get_status_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
+    shortcuts = {
+      stage_unstage = "s",
+    }
   })
 end
 

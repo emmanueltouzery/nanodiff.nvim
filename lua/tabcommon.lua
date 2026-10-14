@@ -8,12 +8,16 @@ local M = {}
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
 
 local function win_load_sha_file(winnr, git_root, path, sha)
-  local bufname = string.format("git://%s/%s", sha, path)
+  local bufname = string.format("nanogit://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
     difflayout.win_set_diff(winnr)
   else
+    -- create the buffer immediately to prevent races
+    local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
+    vim.api.nvim_buf_set_name(bufnr, bufname)
+
     async.run(function()
       -- gsub: remove extra newline from git show
       local contents = io_helpers.run_cmd({"git", "show", sha .. ":" .. path}, {cwd = git_root})
@@ -23,10 +27,7 @@ local function win_load_sha_file(winnr, git_root, path, sha)
       local lines = vim.split(contents, "\n", { plain = true })
 
       vim.schedule(function()
-        local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-
-        vim.api.nvim_buf_set_name(bufnr, bufname)
 
         vim.bo[bufnr].readonly = true
         vim.api.nvim_buf_call(bufnr, function()

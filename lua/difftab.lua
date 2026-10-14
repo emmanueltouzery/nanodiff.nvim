@@ -7,6 +7,7 @@ local bufdata = require('core.bufdata')
 local conflicts = require('conflicts')
 local index_watcher = require('index_watcher')
 local options = require('core.options')
+local io_helpers = require('core.io_helpers')
 
 local M = {}
 
@@ -65,10 +66,32 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   if reload_index then
     index_watcher.setup_index_watch(git_root, left_buf, function()
       async.run(function()
+        local sel = left_buf_data.ft_st.selected_item
         local sections = reload_index(git_root)
         vim.schedule(function()
-          left_buf_data.sections = sections
-          refresh_left_buf(left_buf)
+          -- i must clear all stage-related managed buffers, because what's staged/stashed and so on
+          -- may have changed
+          for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+            local b = vim.api.nvim_win_get_buf(w)
+            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanogit://:") then
+              -- if we delete the buffer, that would close the window
+              -- because buffers a "hidden=wipe", that'll clean it
+              difflayout.win_load_null_file(w)
+            end
+          end
+
+          -- an item may have changed section, if it was staged or unstaged for instance
+          -- try to find it back
+          local final_section = vim.iter(sections):find(function(s)
+            return vim.iter(left_buf_data.ft.section_get_items(s)):find(function(i) return i.path == sel.item.path end)
+          end)
+          if final_section then
+            sel.section = final_section
+          else
+            sel = nil
+          end
+          filetree.set_contents(left_buf_data.ft, left_buf_data.ft_st, sections)
+          filetree.handle_enter(left_buf_data.ft, left_buf_data.ft_st)
         end)
       end):raise_on_error()
     end)
@@ -113,6 +136,30 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
+
+  if opts.shortcuts.stage_unstage then
+    vim.keymap.set('n', opts.shortcuts.stage_unstage, function()
+      -- will stage the item under the cursor
+      local section, item = filetree.get_cur_section_item(bufdata.get_data(left_buf).ft_st)
+      if section == nil then
+        -- no item under the cursor
+        return
+      end
+      local path = item.path
+      -- TODO if conflicted file, allow staging if the number of conflicts is zero...
+      local command = nil
+      if section.right_sha == "disk" then
+        -- unstaged, stage it
+        command = {"git", "add", path}
+      else
+        -- staged, unstage it
+        command = {"git", "restore", "--staged", path}
+      end
+      async.run(function()
+        io_helpers.run_cmd(command, {cwd = git_root})
+      end):raise_on_error()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 

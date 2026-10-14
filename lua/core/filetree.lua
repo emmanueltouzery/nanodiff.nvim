@@ -259,10 +259,13 @@ end
 
 -- if you pass in the scroll_win, the cursor will be moved to
 -- the selected item after displaying
-function M.set_contents(ft, ft_st, data)
+function M.set_contents(ft, ft_st, data, selected_item)
   ft_st.sections = data
   ft_st.tree_by_section = {}
   ft_st.sorted_files = {}
+  if selected_item then
+    ft_st.selected_item = selected_item
+  end
 
   if #data > 0 then
     -- expand the first non-empty section
