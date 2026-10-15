@@ -217,10 +217,16 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
 
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
   local expanded = nil
-  if ft.expand_default or selected_path ~= nil then
-    expanded = expand_set ~= false or expand_selected
+  if expand_selected and selected_path then
+    -- we were asked to expand when we have the selection,
+    -- we have the selection, expand
+    expanded = true
+  elseif expand_set == false then
+    -- the user asked not to expand, we don't expand
+    expanded = false
   else
-    expanded = expand_set == true
+    -- not selected, no user-closed, expand as per default
+    expanded = ft.expand_default
   end
   local selection_line = nil
   if expanded then
@@ -230,7 +236,7 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
 end
 
 --- redisplay must be performed after node expand/collapse or selection change
-function M.redisplay(ft, ft_st, scroll_win)
+function M.redisplay(ft, ft_st, focus_selected)
   ft_st.lines = ft.get_header()
   ft_st.line_to_item = {}
 
@@ -241,7 +247,7 @@ function M.redisplay(ft, ft_st, scroll_win)
     if ft_st.selected_item ~= nil and ft.section_get_key(ft_st.selected_item.section) == section_key then
       selected_path = ft_st.selected_item.item.path
     end
-    local sl = add_section_to_lines(ft, ft_st, section, selected_path, ft_st.tree_expand_st[section_key], scroll_win)
+    local sl = add_section_to_lines(ft, ft_st, section, selected_path, ft_st.tree_expand_st[section_key], focus_selected)
     if sl and selection_line == nil then
       selection_line = sl
     end
@@ -252,7 +258,7 @@ function M.redisplay(ft, ft_st, scroll_win)
   M.render_lines(ft_st.bufnr, ft_st.lines)
   vim.bo[ft_st.bufnr].modifiable = false
   vim.bo[ft_st.bufnr].readonly = true
-  if scroll_win and selection_line then
+  if focus_selected and selection_line then
     vim.api.nvim_win_set_cursor(ft_st.winnr, { selection_line, 0 })
   end
 end
