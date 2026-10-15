@@ -99,7 +99,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     winnr = bottom_win,
   })
 
-  difflayout.setup_log_tab_layout(bottom_buf)
+  difflayout.setup_log_tab_layout(bottom_buf, opts)
 
   filetree.set_contents(bottom_buf_data.ft, bottom_buf_data.ft_st, log)
 

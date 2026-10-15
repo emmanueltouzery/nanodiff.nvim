@@ -100,7 +100,7 @@ function M.diff_tab_layout_load_buf(left_buf_data, section, item, win_load_buf)
   end
 end
 
-function M.diff_tab_layout_init(left_buf)
+function M.diff_tab_layout_init(left_buf, opts)
   local left_buf_data = bufdata.get_data(left_buf)
   local left_win = left_buf_data.left_win
 
@@ -116,7 +116,7 @@ function M.diff_tab_layout_init(left_buf)
   local diff1_win = vim.api.nvim_get_current_win()
 
   -- Set left window width to 40 characters
-  vim.api.nvim_win_set_width(left_win, 40)
+  vim.api.nvim_win_set_width(left_win, opts.panel_width)
   -- Lock the width against <C-W>= balancing
   vim.wo[left_win].winfixwidth = true
 
@@ -138,7 +138,7 @@ function M.diff_tab_layout_init(left_buf)
   vim.wo[left_win].wrap = false
 end
 
-function M.setup_log_tab_layout(bottom_buf)
+function M.setup_log_tab_layout(bottom_buf, opts)
   local bottom_buf_data = bufdata.get_data(bottom_buf)
   local bottom_win = bottom_buf_data.bottom_win
 
@@ -160,7 +160,7 @@ function M.setup_log_tab_layout(bottom_buf)
     split = 'right',
     win = top_left_win,
   })
-  vim.api.nvim_win_resize(bottom_win, -1, 15)
+  vim.api.nvim_win_resize(bottom_win, -1, opts.panel_height)
 
   -- Lock the height against <C-W>= balancing
   vim.wo[bottom_win].winfixheight = true

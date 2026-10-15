@@ -97,7 +97,7 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     end)
   end
 
-  difflayout.diff_tab_layout_init(left_buf)
+  difflayout.diff_tab_layout_init(left_buf, opts)
 
   vim.api.nvim_set_current_win(left_win)
 

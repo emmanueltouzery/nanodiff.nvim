@@ -244,7 +244,7 @@ local function revspec_display_commits_popup(git_root, left_buf, revspec)
 end
 
 function M.revspec(revspec, opts)
-  opts = options.apply_option_defaults(opts, options.get_common_options())
+  opts = options.apply_option_defaults(opts, options.get_diff_options())
   io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
     local revspec, contents = get_diff_revspec(git_root, revspec)

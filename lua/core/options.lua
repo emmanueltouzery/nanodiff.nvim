@@ -19,14 +19,21 @@ function M.get_log_options()
       yank_commit = "y",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
+    panel_height = 15,
+  })
+end
+
+local function get_diff_options()
+  return vim.tbl_deep_extend("force", M.get_common_options(), {
+    panel_width = 40,
   })
 end
 
 function M.get_status_options()
-  return vim.tbl_deep_extend("force", M.get_common_options(), {
+  return vim.tbl_deep_extend("force", get_diff_options(), {
     shortcuts = {
       stage_unstage = "s",
-    }
+    },
   })
 end
 
