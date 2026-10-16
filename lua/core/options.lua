@@ -33,6 +33,7 @@ function M.get_status_options()
   return vim.tbl_deep_extend("force", get_diff_options(), {
     shortcuts = {
       stage_unstage = "s",
+      drop_changes = "X",
     },
   })
 end

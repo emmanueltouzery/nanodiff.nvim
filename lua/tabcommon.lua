@@ -74,8 +74,8 @@ local function blob_size(git_root, path, rev)
 end
 
 function M.win_load_buf(git_root, winnr, path, sha)
-  vim.wo[winnr].diff = false
-  vim.wo[winnr].scrollbind = false
+  vim.api.nvim_set_option_value('diff', false, { win = winnr, scope = 'local' })
+  vim.api.nvim_set_option_value('scrollbind', false, { win = winnr, scope = 'local' })
 
   if sha == "nil" then
     difflayout.win_load_null_file(winnr)

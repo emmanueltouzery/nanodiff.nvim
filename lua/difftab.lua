@@ -163,6 +163,28 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
+  if opts.shortcuts.drop_changes then
+    vim.keymap.set('n', opts.shortcuts.drop_changes, function()
+      -- will drop changes from the item under the cursor
+      local section, item = filetree.get_cur_section_item(bufdata.get_data(left_buf).ft_st)
+      if section == nil then
+        -- no item under the cursor
+        return
+      end
+      local diff2_win = bufdata.get_data(left_buf).diff2_win
+      if vim.bo[vim.api.nvim_win_get_buf(diff2_win)].modified then
+        vim.notify("Refusing to restore a file with unsaved changes!", vim.log.levels.WARN, {source = "nanodiff"})
+        return
+      end
+
+      -- first switch to the next file as this file will disappear
+      filetree.next_file(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
+      async.run(function()
+        io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
+      end):raise_on_error()
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
+
   return left_buf
 end
 
