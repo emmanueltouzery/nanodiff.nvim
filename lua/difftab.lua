@@ -180,7 +180,14 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
       -- first switch to the next file as this file will disappear
       filetree.next_file(bufdata.get_data(left_buf).ft, bufdata.get_data(left_buf).ft_st)
       async.run(function()
+        local hash = io_helpers.run_cmd({"git", "hash-object", "-w", "--", item.path}, {cwd = git_root})
         io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
+        vim.schedule(function()
+          vim.notify(
+            string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11)),
+            vim.log.levels.INFO, {source = "nanodiff"}
+          )
+        end)
       end):raise_on_error()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
