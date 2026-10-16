@@ -1,12 +1,12 @@
 local async = vim.async
 
-local logtab = require('logtab')
 local io_helpers = require('core.io_helpers')
 local options = require('core.options')
+local logtab = require('git.logtab')
 
 local M = {}
 
-local function parse_git_log_output(stdout, opts)
+function M.parse_git_log_output(stdout, opts)
   local commits = {}
   local current_commit = nil
 
@@ -86,7 +86,7 @@ local function parse_git_log_output(stdout, opts)
   return commits
 end
 
-local function display_log_cmd(title, cmd_fn, opts)
+function M.display_log_cmd(title, cmd_fn, opts)
   io_helpers.async_progress("Loading git log", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local git_log = cmd_fn(git_root)
@@ -94,56 +94,6 @@ local function display_log_cmd(title, cmd_fn, opts)
       logtab.open_log_tab(title, git_log, git_root, cmd_fn, opts)
     end)
   end)
-end
-
-function M.display_log(opts)
-  opts = options.apply_option_defaults(opts, options.get_log_options())
-  local single_file_path = opts.path
-  local buf = opts.buf
-  if type(buf) == "number" then
-    single_file_path = vim.api.nvim_buf_get_name(buf)
-  end
-  display_log_cmd("Log view", function(git_root, extra_params)
-    if single_file_path then
-      single_file_path = vim.fs.relpath(git_root, single_file_path)
-    end
-    local cmd = vim.iter({
-      { "git", "-P",
-      "-c", "gc.auto=0",
-      "-c", "core.quotePath=false",
-      "log",
-      "-n256",
-    }, (extra_params or {}), {
-      "--diff-merges=first-parent",
-      "--numstat", "--raw",
-      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-    }}):flatten():totable()
-    if single_file_path then
-      table.insert(cmd, "--follow")
-    end
-    vim.list_extend(cmd, { "--", single_file_path or git_root })
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
-  end, opts)
-end
-
-function M.display_stashes(opts)
-  opts = options.apply_option_defaults(opts, options.get_log_options())
-  display_log_cmd("Stashes", function(git_root, extra_params)
-    local cmd = vim.iter({
-      { "git", "-P",
-      "-c", "gc.auto=0",
-      "-c", "core.quotePath=false",
-      "log",
-      "-n256",
-    }, (extra_params or {}), {
-      "-g", -- --walk-reflogs: iterate through the stash stack
-      "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)
-      "--numstat", "--raw",
-      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-      "refs/stash"
-    }}):flatten():totable()
-    return parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
-  end, opts)
 end
 
 return M

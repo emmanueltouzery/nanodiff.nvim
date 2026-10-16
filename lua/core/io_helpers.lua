@@ -3,7 +3,6 @@ local M = {}
 local async = vim.async
 M.async_sys = async.wrap(3, vim.system)
 
-
 function M.run_cmd(cmd, opts)
   local res = M.async_sys(cmd, opts)
   if res.code ~= 0 then

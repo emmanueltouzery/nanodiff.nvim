@@ -2,12 +2,12 @@ local async = vim.async
 
 local filetree = require('core.filetree')
 local difflayout = require('core.difflayout')
-local tabcommon = require('tabcommon')
 local bufdata = require('core.bufdata')
-local conflicts = require('conflicts')
-local index_watcher = require('index_watcher')
 local options = require('core.options')
 local io_helpers = require('core.io_helpers')
+local tabcommon = require('git.tabcommon')
+local conflicts = require('git.conflicts')
+local index_watcher = require('git.index_watcher')
 
 local M = {}
 

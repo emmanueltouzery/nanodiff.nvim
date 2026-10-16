@@ -1,5 +1,5 @@
 local io_helpers = require("core.io_helpers")
-local index_watcher = require("index_watcher")
+local index_watcher = require("git.index_watcher")
 
 local M = {}
 

@@ -1,9 +1,9 @@
 local filetree = require('core.filetree')
-local tabcommon = require('tabcommon')
 local bufdata = require('core.bufdata')
 local log_filter = require('core.log_filter')
 local io_helpers = require('core.io_helpers')
 local difflayout = require('core.difflayout')
+local tabcommon = require('git.tabcommon')
 local async = vim.async
 
 local M = {}

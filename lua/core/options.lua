@@ -23,14 +23,14 @@ function M.get_log_options()
   })
 end
 
-local function get_diff_options()
+function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     panel_width = 40,
   })
 end
 
 function M.get_status_options()
-  return vim.tbl_deep_extend("force", get_diff_options(), {
+  return vim.tbl_deep_extend("force", M.get_diff_options(), {
     shortcuts = {
       stage_unstage = "s",
       drop_changes = "X",
