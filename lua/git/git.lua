@@ -39,7 +39,7 @@ local function parse_diff_numstat(stdout)
   return stats
 end
 
-local function get_diff_status(git_root)
+local function get_diff_status(git_root, opts)
   local current_commit = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "HEAD"}, {cwd = git_root}))
 
   -- need to fetch the per-file diffstats separately
@@ -119,12 +119,19 @@ local function get_diff_status(git_root)
     conflict_commits = conflicts.get_conflict_commits(git_root)
   end
 
+  local conflicts_section = {
+    title = "Conflicts", contents = conflicted_files,
+    left_sha = conflict_commits.ours, left_winbar = "OURS " .. conflict_commits.ours,
+    mid_sha = "disk", mid_winbar = "LOCAL",
+    right_sha = conflict_commits.theirs, right_winbar = "THEIRS " .. conflict_commits.theirs,
+  }
+  if opts.conflicts_display_mode == "ours_local_theirs_base" then
+    conflicts_section.bottom_sha = conflict_commits.base
+    conflicts_section.bottom_winbar = "BASE " .. conflict_commits.base
+  end
+
   return {
-    {title = "Conflicts", contents = conflicted_files,
-      left_sha = conflict_commits.ours, left_winbar = "OURS " .. conflict_commits.ours,
-      mid_sha = "disk", mid_winbar = "LOCAL",
-      right_sha = conflict_commits.theirs, right_winbar = "THEIRS " .. conflict_commits.theirs,
-      bottom_sha = conflict_commits.base, bottom_winbar = "BASE " .. conflict_commits.base},
+    conflicts_section,
     {title = "Changes", contents = changes, left_sha = ":0", right_sha = "disk", always_show = true}, -- :0 = staged file, so we're looking at unstaged changes
     {title = "Staged", contents = staged, left_sha = current_commit, right_sha = ":0"},
   }
@@ -133,7 +140,7 @@ end
 function M.status(opts)
   io_helpers.async_progress("Loading git status", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}))
-    local status = get_diff_status(git_root)
+    local status = get_diff_status(git_root, opts)
     vim.schedule(function()
       if vim.iter(status):all(function(item) return #item.contents == 0 end) then
         vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})

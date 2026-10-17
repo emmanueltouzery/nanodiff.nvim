@@ -35,6 +35,7 @@ function M.get_status_options()
       stage_unstage = "s",
       drop_changes = "X",
     },
+    conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })
 end
 

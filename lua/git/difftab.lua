@@ -67,7 +67,7 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     index_watcher.setup_index_watch(git_root, left_buf, function()
       async.run(function()
         local sel = left_buf_data.ft_st.selected_item
-        local sections = reload_index(git_root)
+        local sections = reload_index(git_root, opts)
         vim.schedule(function()
           -- i must clear all stage-related managed buffers, because what's staged/stashed and so on
           -- may have changed
