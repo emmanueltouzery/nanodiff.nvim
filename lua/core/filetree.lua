@@ -243,11 +243,11 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
     -- we were asked to expand when we have the selection,
     -- we have the selection, expand
     expanded = true
-  elseif expand_set == false then
-    -- the user asked not to expand, we don't expand
-    expanded = false
+  elseif expand_set ~= nil then
+    -- the user asked something, respect it
+    expanded = expand_set
   else
-    -- not selected, no user-closed, expand as per default
+    -- not selected, no user request, expand as per default
     expanded = ft.expand_default
   end
   local selection_line = nil
