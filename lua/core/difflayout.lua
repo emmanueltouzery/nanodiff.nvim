@@ -24,7 +24,6 @@ function M.win_load_null_file(winnr)
     vim.bo[bufnr].buftype = "nofile"
   end
   vim.api.nvim_win_set_buf(winnr, bufnr)
-  M.win_set_diff(winnr)
 end
 
 function M.win_load_disk_file(winnr, path)
@@ -37,7 +36,6 @@ function M.win_load_disk_file(winnr, path)
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
   vim.api.nvim_win_set_buf(winnr, bufnr)
-  M.win_set_diff(winnr)
   vim.api.nvim_exec_autocmds("User", {
     pattern = "NanodiffDiskBufferLoaded",
     data = { path = path, buf = bufnr },
@@ -172,6 +170,44 @@ function M.setup_log_tab_layout(bottom_buf, opts)
   vim.wo[bottom_win].relativenumber = false
   vim.wo[bottom_win].signcolumn = "no"
   vim.wo[bottom_win].wrap = false
+end
+
+-- I have seen diff "corruption", the diff being incorrect, if
+-- loading windows one by one and enabling diff mode for them
+-- as they are loaded (so the windows configuration keeps changing
+-- after enabling diff mode for multiple windows in the tab).
+--
+-- This went away when I started enabling diff mode only after
+-- the window configuration/window buffer mapping was stable.
+-- => watch for the windows to "stabilize" and when they do,
+-- I'll be able to activate diff mode.
+function M.wait_for_windows_ready(target_wins, on_all_ready)
+  local pending = {}
+  for _, win_id in ipairs(target_wins) do
+    pending[win_id] = true
+  end
+
+  local remaining = #target_wins
+
+  local group_name = "NanodiffBarrier_" .. math.random(100000)
+  local augroup = vim.api.nvim_create_augroup(group_name, { clear = true })
+
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = augroup,
+    callback = function()
+      local current_win = vim.api.nvim_get_current_win()
+
+      if pending[current_win] then
+        pending[current_win] = nil
+        remaining = remaining - 1
+
+        if remaining == 0 then
+          vim.api.nvim_del_augroup_by_id(augroup)
+          on_all_ready()
+        end
+      end
+    end,
+  })
 end
 
 return M

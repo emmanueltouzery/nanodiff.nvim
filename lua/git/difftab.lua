@@ -26,6 +26,19 @@ local function load_entry(ft, ft_st, left_buf, git_root, section, item, skip_ref
   if not skip_refresh_left_buf then
     filetree.redisplay(left_buf_data.ft, left_buf_data.ft_st, true)
   end
+  -- activate diff mode only when all windows are ready
+  local relevant_windows = {left_buf_data.diff1_win, left_buf_data.diff2_win}
+  if section.bottom_sha then
+    table.insert(relevant_windows, left_buf_data.diff4_win)
+  end
+  if section.mid_sha then
+    table.insert(relevant_windows, left_buf_data.diff3_win)
+  end
+  difflayout.wait_for_windows_ready(relevant_windows, function()
+    for _, winnr in ipairs(relevant_windows) do
+      difflayout.win_set_diff(winnr)
+    end
+  end)
 end
 
 function M.open_diff_tab(sections, git_root, reload_index, opts)

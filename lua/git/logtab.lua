@@ -63,6 +63,13 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
   if not skip_refresh_bottom_buf then
     filetree.redisplay(bottom_buf_data.ft, bottom_buf_data.ft_st, true)
   end
+  -- activate diff mode only when all windows are ready
+  local relevant_windows = {bottom_buf_data.diff1_win, bottom_buf_data.diff2_win}
+  difflayout.wait_for_windows_ready(relevant_windows, function()
+    for _, winnr in ipairs(relevant_windows) do
+      difflayout.win_set_diff(winnr)
+    end
+  end)
 end
 
 local function get_header(bottom_buf, log)

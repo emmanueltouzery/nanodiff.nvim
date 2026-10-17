@@ -12,7 +12,6 @@ local function win_load_sha_file(winnr, git_root, path, sha, winbar)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
-    difflayout.win_set_diff(winnr)
   else
     -- create the buffer immediately to prevent races
     local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
@@ -40,7 +39,6 @@ local function win_load_sha_file(winnr, git_root, path, sha, winbar)
         vim.bo[bufnr].modifiable = false
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
-        difflayout.win_set_diff(winnr)
         if winbar ~= nil then
           vim.wo[winnr].winbar = winbar
         end
