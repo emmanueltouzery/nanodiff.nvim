@@ -7,6 +7,7 @@ local ns_hl_id = vim.api.nvim_create_namespace("nanodiff_ui_highlights")
 function M.render_lines(bufnr, lines)
   local lines_text = {}
   local highlights = {}
+  local extmarks = {}
 
   for line_idx, line in ipairs(lines) do
     local line_0idx = line_idx - 1 -- Convert 1-based Lua index to 0-based Neovim index
@@ -15,24 +16,38 @@ function M.render_lines(bufnr, lines)
       table.insert(lines_text, line)
     else
       local line_text = ""
+      local virt_text = {}
+      local virt_text_pos = nil
       for _, chunk in ipairs(line) do
         local text = chunk[1]
         local hl_group = chunk[2]
 
-        local start_byte = #line_text
-        line_text = line_text .. text
-        local end_byte = #line_text
 
         if hl_group then
-          table.insert(highlights, {
-            line = line_0idx,
-            hl = hl_group,
-            s = start_byte,
-            e = end_byte,
-          })
+          if hl_group:find("+", 1, true) then
+            -- virtual text
+            local hl, text_pos = unpack(vim.split(hl_group, "+", { plain = true }))
+            virt_text_pos = text_pos
+            table.insert(virt_text, { text, hl })
+          else
+            local start_byte = #line_text
+            line_text = line_text .. text
+            local end_byte = #line_text
+            table.insert(highlights, {
+              line = line_0idx,
+              hl = hl_group,
+              s = start_byte,
+              e = end_byte,
+            })
+          end
+        else
+          line_text = line_text .. text
         end
       end
       table.insert(lines_text, line_text)
+      if #virt_text > 0 then
+        table.insert(extmarks, { lnum = #lines_text-1, virt_text_pos = virt_text_pos, virt_text = virt_text })
+      end
     end
   end
 
@@ -41,6 +56,13 @@ function M.render_lines(bufnr, lines)
 
   for _, item in ipairs(highlights) do
     vim.api.nvim_buf_add_highlight(bufnr, ns_hl_id, item.hl, item.line, item.s, item.e)
+  end
+
+  for _, em in ipairs(extmarks) do
+    vim.api.nvim_buf_set_extmark(bufnr, ns_hl_id, em.lnum, 0, {
+      virt_text = em.virt_text,
+      virt_text_pos = em.virt_text_pos,
+    })
   end
 end
 

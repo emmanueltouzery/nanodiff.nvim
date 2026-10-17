@@ -1,6 +1,7 @@
 local io_helpers = require('core.io_helpers')
 local difftab = require('git.difftab')
 local log = require('git.log')
+local conflicts = require('git.conflicts')
 
 local M = {}
 

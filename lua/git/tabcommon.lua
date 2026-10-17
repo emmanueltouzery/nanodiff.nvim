@@ -131,9 +131,9 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state)
       {icon .. " ", icon_hl_group},
       {item.path .. " ", path_hl},
       {conflicts_state.conflicts[extra.item_full_path] ~= nil
-        and #conflicts_state.conflicts[extra.item_full_path]
+        and " " .. #conflicts_state.conflicts[extra.item_full_path]
         or "",
-      "DiffviewFilePanelConflicts"},
+      "DiffviewFilePanelConflicts+right_align"},
     }
   elseif item.orig_path then
     line_info = {
@@ -143,20 +143,19 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state)
       {item.orig_path, nil},
       {" -> ", nil},
       {item.path, path_hl},
-      {" +" .. (item.added or 0), "DiffviewFilePanelInsertions"},
-      {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions"},
+      {" +" .. (item.added or 0), "DiffviewFilePanelInsertions+right_align"},
+      {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions+right_align"},
     }
   else
     line_info = {
       {item.status, status_hl},
       {string.format("%s ", prefix), nil},
       {icon .. " ", icon_hl_group},
-      {item.path .. " ", path_hl},
+      {item.path, path_hl},
     }
     if item.added ~= nil or item.deleted ~= nil then
-      table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions"})
-      table.insert(line_info, {" ", nil})
-      table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions"})
+      table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions+right_align"})
+      table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions+right_align"})
     end
   end
   return line_info
