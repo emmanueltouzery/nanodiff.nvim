@@ -18,11 +18,11 @@ end
 local function load_entry(ft, ft_st, left_buf, git_root, section, item, skip_refresh_left_buf)
   local left_buf_data = bufdata.get_data(left_buf)
   filetree.set_selected_item(ft_st, section, item)
-  difflayout.diff_tab_layout_load_buf(left_buf_data, section, item, function(win, path, rev)
-    tabcommon.win_load_buf(git_root, win, path, rev)
+  difflayout.diff_tab_layout_load_buf(left_buf_data, section, item, function(win, path, rev, winbar)
+    tabcommon.win_load_buf(git_root, win, path, rev, winbar)
   end)
-  tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha)
-  tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, item.path, item.right_sha or section.right_sha)
+  tabcommon.win_load_buf(git_root, left_buf_data.diff1_win, item.path, item.left_sha or section.left_sha, section.left_winbar)
+  tabcommon.win_load_buf(git_root, left_buf_data.diff2_win, item.path, item.right_sha or section.right_sha, section.right_winbar)
   if not skip_refresh_left_buf then
     filetree.redisplay(left_buf_data.ft, left_buf_data.ft_st, true)
   end

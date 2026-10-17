@@ -57,7 +57,7 @@ function M.diff_tab_layout_load_buf(left_buf_data, section, item, win_load_buf)
     end
     if not section.bottom_sha then
       -- MESSY... if bottom_sha is present, we'll tear down and recreate this window...
-      win_load_buf(left_buf_data.diff3_win, item.path, section.mid_sha)
+      win_load_buf(left_buf_data.diff3_win, item.path, section.mid_sha, section.mid_winbar)
     end
   elseif left_buf_data.diff3_win then
     vim.api.nvim_win_close(left_buf_data.diff3_win, false)
@@ -93,8 +93,8 @@ function M.diff_tab_layout_load_buf(left_buf_data, section, item, win_load_buf)
       vim.bo[buf2].bufhidden = "wipe"
       vim.bo[buf3].bufhidden = "wipe"
     end
-    win_load_buf(left_buf_data.diff3_win, item.path, section.mid_sha)
-    win_load_buf(left_buf_data.diff4_win, item.path, section.bottom_sha)
+    win_load_buf(left_buf_data.diff3_win, item.path, section.mid_sha, section.mid_winbar)
+    win_load_buf(left_buf_data.diff4_win, item.path, section.bottom_sha, section.bottom_winbar)
   elseif left_buf_data.diff4_win then
     vim.api.nvim_win_close(left_buf_data.diff4_win, false)
     left_buf_data.diff4_win = nil

@@ -7,7 +7,7 @@ local M = {}
 
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
 
-local function win_load_sha_file(winnr, git_root, path, sha)
+local function win_load_sha_file(winnr, git_root, path, sha, winbar)
   local bufname = string.format("nanogit://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
@@ -41,6 +41,9 @@ local function win_load_sha_file(winnr, git_root, path, sha)
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
         difflayout.win_set_diff(winnr)
+        if winbar ~= nil then
+          vim.wo[winnr].winbar = winbar
+        end
       end)
     end):raise_on_error()
   end
@@ -74,7 +77,7 @@ local function blob_size(git_root, path, rev)
   end
 end
 
-function M.win_load_buf(git_root, winnr, path, sha)
+function M.win_load_buf(git_root, winnr, path, sha, winbar)
   vim.api.nvim_set_option_value('diff', false, { win = winnr, scope = 'local' })
   vim.api.nvim_set_option_value('scrollbind', false, { win = winnr, scope = 'local' })
 
@@ -84,6 +87,9 @@ function M.win_load_buf(git_root, winnr, path, sha)
     -- might reposition the file at the last-remembered line number
     -- for that file
     vim.api.nvim_win_set_cursor(winnr, { 1, 0 })
+    if winbar ~= nil then
+      vim.wo[winnr].winbar = winbar
+    end
   else
     async.run(function()
       local is_display = true
@@ -96,6 +102,9 @@ function M.win_load_buf(git_root, winnr, path, sha)
       vim.schedule(function()
         if not is_display then
           difflayout.win_load_null_file(winnr)
+          if winbar ~= nil then
+            vim.wo[winnr].winbar = winbar
+          end
         elseif sha == "disk" then
           async.run(function()
             -- the path may be a git path, but maybe neovim's current folder is not
@@ -106,10 +115,13 @@ function M.win_load_buf(git_root, winnr, path, sha)
             end
             vim.schedule(function()
               difflayout.win_load_disk_file(winnr, path)
+              if winbar ~= nil then
+                vim.wo[winnr].winbar = winbar
+              end
             end)
           end):raise_on_error()
         else
-          win_load_sha_file(winnr, git_root, path, sha)
+          win_load_sha_file(winnr, git_root, path, sha, winbar)
         end
         -- if we don't force the line number to zero, neovim
         -- might reposition the file at the last-remembered line number
