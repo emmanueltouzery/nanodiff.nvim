@@ -1,4 +1,5 @@
 local io_helpers = require("core.io_helpers")
+local bufdata = require("core.bufdata")
 local index_watcher = require("git.index_watcher")
 
 local M = {}
@@ -58,12 +59,14 @@ local function refresh_conflicts(bufnr, path, conflicts_state, refresh)
   refresh()
 end
 
-function M.register_watchers(conflicts_section, conflicts_state, refresh)
+function M.register_watchers(conflicts_section, buf, refresh)
+  local buf_data = bufdata.get_data(buf)
+  local conflicts_state = buf_data.conflicts_state
   local conflicts_path = {}
   for _, item in ipairs(conflicts_section.contents) do
     conflicts_path[item.path] = true
   end
-  vim.api.nvim_create_autocmd("User", {
+  local autocmd_id = vim.api.nvim_create_autocmd("User", {
     group = augroup,
     pattern = "NanodiffDiskBufferLoaded",
     callback = function(args)
@@ -85,6 +88,9 @@ function M.register_watchers(conflicts_section, conflicts_state, refresh)
   })
 
   -- unregister the watchers when the tab is closed
+  bufdata.add_cleanup(buf, function()
+    vim.api.nvim_del_autocmd(autocmd_id)
+  end)
 end
 
 return M

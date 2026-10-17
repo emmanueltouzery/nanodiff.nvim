@@ -58,7 +58,7 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   local conflicts_section = sections[1]
   if sections[1].title == "Conflicts" then
     left_buf_data.conflicts_state = {conflicts = {}}
-    conflicts.register_watchers(conflicts_section, left_buf_data.conflicts_state, function()
+    conflicts.register_watchers(conflicts_section, left_buf, function()
       filetree.redisplay(left_buf_data.ft, left_buf_data.ft_st, false)
     end)
   end
