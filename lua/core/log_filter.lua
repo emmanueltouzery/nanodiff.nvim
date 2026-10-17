@@ -34,6 +34,7 @@ function M.open_filtering_modal(bottom_buf, options, refresh_bottom_buf)
   end
   local bufnr = vim.api.nvim_create_buf(false, false)
   vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].buftype = "nofile"
 
   local win_height = refresh_modal(bufnr, bottom_buf_data)
 

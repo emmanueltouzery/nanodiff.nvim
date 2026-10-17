@@ -21,6 +21,7 @@ function M.win_load_null_file(winnr)
     bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
     vim.api.nvim_buf_set_name(bufnr, bufname)
     vim.bo[bufnr].bufhidden = "wipe"
+    vim.bo[bufnr].buftype = "nofile"
   end
   vim.api.nvim_win_set_buf(winnr, bufnr)
   M.win_set_diff(winnr)

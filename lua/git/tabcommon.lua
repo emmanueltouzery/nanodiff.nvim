@@ -16,6 +16,8 @@ local function win_load_sha_file(winnr, git_root, path, sha)
   else
     -- create the buffer immediately to prevent races
     local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
+    vim.bo[bufnr].bufhidden = "wipe"
+    vim.bo[bufnr].buftype = "nofile"
     vim.api.nvim_buf_set_name(bufnr, bufname)
 
     async.run(function()
@@ -36,7 +38,6 @@ local function win_load_sha_file(winnr, git_root, path, sha)
         vim.bo[bufnr].readonly = true
         vim.bo[bufnr].modified = false
         vim.bo[bufnr].modifiable = false
-        vim.bo[bufnr].bufhidden = "wipe"
 
         vim.api.nvim_win_set_buf(winnr, bufnr)
         difflayout.win_set_diff(winnr)
