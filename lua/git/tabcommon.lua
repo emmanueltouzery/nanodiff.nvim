@@ -130,10 +130,16 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar)
   end
 end
 
-function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state)
+function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
   local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
+  local diffstat_prefix = " "
+  local diffstat_hl_suffix = ""
+  if right_align_diffstat then
+    diffstat_prefix = ""
+    diffstat_hl_suffix = "+right_align"
+  end
   if item.status == "U" then
     -- git conflict: don't display the +- diffstat, rather the number of conflicts
     line_info = {
@@ -153,20 +159,26 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state)
       {icon .. " ", icon_hl_group},
       {item.orig_path, nil},
       {" -> ", nil},
-      {item.path, path_hl},
-      {" +" .. (item.added or 0), "DiffviewFilePanelInsertions+right_align"},
-      {" -" .. (item.deleted or 0), "DiffviewFilePanelDeletions+right_align"},
+      {item.path .. diffstat_prefix, path_hl},
     }
+    if item.added ~= nil and item.added ~= 0 then
+      table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
+    end
+    if item.deleted ~= nil and item.deleted ~= 0 then
+      table.insert(line_info, {"-" .. item.deleted,  "DiffviewFilePanelDeletions" .. diffstat_hl_suffix})
+    end
   else
     line_info = {
       {item.status, status_hl},
       {string.format("%s ", prefix), nil},
       {icon .. " ", icon_hl_group},
-      {item.path, path_hl},
+      {item.path .. diffstat_prefix, path_hl},
     }
-    if item.added ~= nil or item.deleted ~= nil then
-      table.insert(line_info, {"+" .. (item.added or 0), "DiffviewFilePanelInsertions+right_align"})
-      table.insert(line_info, {"-" .. (item.deleted or 0),  "DiffviewFilePanelDeletions+right_align"})
+    if item.added ~= nil and item.added ~= 0 then
+      table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
+    end
+    if item.deleted ~= nil and item.deleted ~= 0 then
+      table.insert(line_info, {"-" .. item.deleted,  "DiffviewFilePanelDeletions" .. diffstat_hl_suffix})
     end
   end
   return line_info

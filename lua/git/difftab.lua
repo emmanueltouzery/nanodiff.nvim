@@ -55,7 +55,9 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     section_get_items = function(s) return s.contents end,
     get_header = function() return {} end, -- TODO
     render_item = function(prefix, item, is_selected, extra)
-      return tabcommon.tree_render_item(prefix, item, is_selected, extra, left_buf_data.conflicts_state)
+      return tabcommon.tree_render_item(
+        prefix, item, is_selected, extra, left_buf_data.conflicts_state, true
+      )
     end,
     render_section = format_section_header,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
