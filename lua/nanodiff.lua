@@ -40,7 +40,7 @@ function M.status(opts)
 end
 
 function M.revspec(revspec, opts)
-  opts = options.apply_option_defaults(opts, options.get_diff_options())
+  opts = options.apply_option_defaults(opts, options.get_revspec_options())
   with_vsc(opts, function(adapter, opts)
     adapter.revspec(revspec, opts)
   end)

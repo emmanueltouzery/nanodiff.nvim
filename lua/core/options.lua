@@ -18,7 +18,6 @@ function M.get_log_options()
     shortcuts = {
       filters = "g!",
       yank_commit = "y",
-      open_log = "L",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
     panel_height = 15,
@@ -28,6 +27,14 @@ end
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     panel_width = 40,
+  })
+end
+
+function M.get_revspec_options()
+  return vim.tbl_deep_extend("force", M.get_diff_options(), {
+    shortcuts = {
+      open_log = "L",
+    },
   })
 end
 

@@ -1,15 +1,15 @@
 local filetree = require('core.filetree')
-local bufdata = require('core.bufdata')
+local tabdata = require('core.tabdata')
 
 local M = {}
 
-local function refresh_modal(bufnr, bottom_buf_data)
+local function refresh_modal(tab_data, bufnr, options)
   local lines = {
     { { "Options", "DiffviewFilePanelTitle"}, },
   }
   for _, opt in ipairs(options) do
     local opt_val = { opt[3], "DiffviewDim1" }
-    local opt_raw = bottom_buf_data.search_settings[opt[1]] 
+    local opt_raw = tab_data.search_settings[opt[1]] 
     if opt_raw then
       opt_val = { opt[3] .. opt_raw, "DiffviewFilePanelCounter" }
     end
@@ -27,16 +27,16 @@ local function refresh_modal(bufnr, bottom_buf_data)
   return #lines
 end
 
-function M.open_filtering_modal(bottom_buf, options, refresh_bottom_buf)
-  local bottom_buf_data = bufdata.get_data(bottom_buf)
-  if bottom_buf_data.search_settings == nil then
-    bottom_buf_data.search_settings = {}
+function M.open_filtering_modal(options, refresh_bottom_buf)
+  local tab_data = tabdata.get_data()
+  if tab_data.search_settings == nil then
+    tab_data.search_settings = {}
   end
   local bufnr = vim.api.nvim_create_buf(false, false)
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].buftype = "nofile"
 
-  local win_height = refresh_modal(bufnr, bottom_buf_data)
+  local win_height = refresh_modal(tab_data, bufnr, options)
 
   vim.bo[bufnr].modifiable = false
   vim.bo[bufnr].readonly = true
@@ -46,13 +46,13 @@ function M.open_filtering_modal(bottom_buf, options, refresh_bottom_buf)
     vim.keymap.set('n', opt[1], function()
       vim.ui.input({ prompt = opt[2], scope = 'window' }, function(v)
         if v == nil then return end
-        local bottom_buf_data = bufdata.get_data(bottom_buf)
+        local tab_data = tabdata.get_data()
         if v == "" then
-          bottom_buf_data.search_settings[opt[1]] = nil
+          tab_data.search_settings[opt[1]] = nil
         else
-          bottom_buf_data.search_settings[opt[1]] = opt[3] .. v
+          tab_data.search_settings[opt[1]] = opt[3] .. v
         end
-        refresh_modal(bufnr, bottom_buf_data)
+        refresh_modal(tab_data, bufnr, options)
       end)
     end, { noremap = true, silent = true, buffer = bufnr })
   end
@@ -80,7 +80,7 @@ function M.open_filtering_modal(bottom_buf, options, refresh_bottom_buf)
     pattern = tostring(w),
     once = true,
     callback = function()
-      refresh_bottom_buf(bottom_buf_data)
+      refresh_bottom_buf(tab_data)
     end,
   })
 end

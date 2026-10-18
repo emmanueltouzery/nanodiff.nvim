@@ -1,5 +1,5 @@
 local io_helpers = require("core.io_helpers")
-local bufdata = require("core.bufdata")
+local tabdata = require("core.tabdata")
 local index_watcher = require("git.index_watcher")
 
 local M = {}
@@ -59,9 +59,9 @@ local function refresh_conflicts(bufnr, path, conflicts_state, refresh)
   refresh()
 end
 
-function M.register_watchers(conflicts_section, buf, refresh)
-  local buf_data = bufdata.get_data(buf)
-  local conflicts_state = buf_data.conflicts_state
+function M.register_watchers(conflicts_section, refresh)
+  local tab_data = tabdata.get_data()
+  local conflicts_state = tab_data.conflicts_state
   local conflicts_path = {}
   for _, item in ipairs(conflicts_section.contents) do
     conflicts_path[item.path] = true
@@ -88,7 +88,7 @@ function M.register_watchers(conflicts_section, buf, refresh)
   })
 
   -- unregister the watchers when the tab is closed
-  bufdata.add_cleanup(buf, function()
+  tabdata.add_cleanup(function()
     vim.api.nvim_del_autocmd(autocmd_id)
   end)
 end

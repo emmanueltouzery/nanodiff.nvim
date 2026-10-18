@@ -1,7 +1,7 @@
 -- inspired by mini.diff's index watcher
 local async = vim.async
 
-local bufdata = require("core.bufdata")
+local tabdata = require("core.tabdata")
 local io_helpers = require("core.io_helpers")
 
 local M = {}
@@ -29,9 +29,11 @@ M.setup_index_watch = function(git_path, bufnr, index_changed_cb)
       timer:start(50, 0, index_changed_cb)
     end
     buf_fs_event:start(git_dir_path, { recursive = false }, watch_index)
-    bufdata.add_cleanup(bufnr, function()
-      vim.loop.timer_stop(timer)
-      vim.loop.fs_event_stop(buf_fs_event)
+    vim.schedule(function()
+      tabdata.add_cleanup(function()
+        vim.loop.timer_stop(timer)
+        vim.loop.fs_event_stop(buf_fs_event)
+      end)
     end)
   end):raise_on_error()
 end
