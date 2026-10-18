@@ -41,6 +41,104 @@ local function load_entry(ft, ft_st, left_buf, git_root, section, item, skip_ref
   end)
 end
 
+local function open_side_by_side_popup(buf1, buf2, opts)
+    local ui = vim.api.nvim_list_uis()[1]
+    local width = math.floor(ui.width * 2 / 3)
+    local height = math.floor(ui.height * 2 / 3)
+
+    local row = math.floor((ui.height - height) / 2)
+    local col = math.floor((ui.width - width) / 2)
+
+    local half_width = math.floor(width / 2)
+
+    local border_no_right = {
+      "┌",  -- top-left
+      "─",  -- top
+      "",   -- top-right (omitted)
+      "",   -- right (omitted)
+      "",   -- bottom-right (omitted)
+      "─",  -- bottom
+      "└",  -- bottom-left
+      "│",  -- left
+    }
+
+    local opts_left = {
+        relative = "editor",
+        width = half_width,
+        height = height,
+        row = row,
+        col = col,
+        style = "minimal",
+        border = border_no_right,
+    }
+
+    local border_no_left = {
+      "",   -- top-left (omitted)
+      "─",  -- top
+      "┐",  -- top-right
+      "│",  -- right
+      "┘",  -- bottom-right
+      "─",  -- bottom
+      "",   -- bottom-left (omitted)
+      "",   -- left (omitted)
+    }
+
+    local opts_right = {
+        relative = "editor",
+        width = width - half_width,
+        height = height,
+        row = row,
+        col = col + half_width+1,
+        style = "minimal",
+        border = border_no_left,
+    }
+
+    local win_left = vim.api.nvim_open_win(buf1, true, opts_left)
+    local win_right = vim.api.nvim_open_win(buf2, false, opts_right)
+
+    vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
+      vim.api.nvim_set_current_win(win_right)
+    end, { buffer = buf1, silent = true })
+
+    vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
+      vim.api.nvim_set_current_win(win_left)
+    end, { buffer = buf2, silent = true })
+
+    for _, win in ipairs({ win_left, win_right }) do
+        local bufnr = vim.api.nvim_win_get_buf(win)
+        vim.keymap.set('n', 'q', function()
+            pcall(vim.api.nvim_win_close, win_left, true)
+            pcall(vim.api.nvim_win_close, win_right, true)
+        end, { buffer = bufnr, silent = true })
+    end
+
+    return win_left, win_right
+end
+
+local function git_text_to_buffer(text)
+  local summary_lines = vim.split(text, '\n', { trimempty = true })
+  local bufnr = vim.api.nvim_create_buf(false, false)
+  vim.bo[bufnr].filetype = "git"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].buftype = "nofile"
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, summary_lines)
+  vim.bo[bufnr].readonly = true
+  vim.bo[bufnr].modified = false
+  vim.bo[bufnr].modifiable = false
+  return bufnr
+end
+
+local function open_conflict_commits(left_buf_data, opts)
+  local section, item = filetree.get_cur_section_item(left_buf_data.ft_st)
+  async.run(function()
+    local summary1 = io_helpers.run_cmd({"git", "show", section.left_sha, "--", item.path})
+    local summary2 = io_helpers.run_cmd({"git", "show", section.right_sha, "--", item.path})
+    vim.schedule(function()
+      open_side_by_side_popup(git_text_to_buffer(summary1), git_text_to_buffer(summary2), opts)
+    end)
+  end)
+end
+
 function M.open_diff_tab(sections, git_root, reload_index, opts)
   vim.cmd("tabnew")
 
@@ -70,10 +168,11 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
     winnr = left_win,
   })
 
-  local conflicts_section = sections[1]
+  local has_conflicts = false
   if sections[1].title == "Conflicts" then
+    has_conflicts = true
     left_buf_data.conflicts_state = {conflicts = {}}
-    conflicts.register_watchers(conflicts_section, left_buf, function()
+    conflicts.register_watchers(sections[1], left_buf, function()
       filetree.redisplay(left_buf_data.ft, left_buf_data.ft_st, false)
     end)
   end
@@ -119,6 +218,13 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   filetree.set_contents(left_buf_data.ft, left_buf_data.ft_st, sections)
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
+
+  if has_conflicts and opts.shortcuts.open_conflict_commits then
+    vim.keymap.set(
+      'n', opts.shortcuts.open_conflict_commits, function() open_conflict_commits(left_buf_data, opts) end,
+      { noremap = true, silent = true, buffer = left_buf }
+    )
+  end
 
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()

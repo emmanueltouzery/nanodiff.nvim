@@ -17,6 +17,7 @@ function M.get_log_options()
     shortcuts = {
       filters = "g!",
       yank_commit = "y",
+      open_log = "L",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
     panel_height = 15,
@@ -34,6 +35,8 @@ function M.get_status_options()
     shortcuts = {
       stage_unstage = "s",
       drop_changes = "X",
+      open_conflict_commits = "L",
+      conflict_modal_switch_commit = "<TAB>",
     },
     conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })

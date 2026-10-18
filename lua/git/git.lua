@@ -259,10 +259,12 @@ function M.revspec(revspec, opts)
     vim.schedule(function()
       local left_buf = difftab.open_diff_tab(contents, git_root, nil, opts)
 
-      vim.keymap.set(
-        'n', 'L', function() revspec_display_commits_popup(git_root, left_buf, revspec) end,
-        { noremap = true, silent = true, buffer = left_buf }
-      )
+      if opts.shortcuts.open_log then
+        vim.keymap.set(
+          'n', opts.shortcuts.open_log, function() revspec_display_commits_popup(git_root, left_buf, revspec) end,
+          { noremap = true, silent = true, buffer = left_buf }
+        )
+      end
     end)
   end)
 end
