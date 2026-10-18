@@ -3,6 +3,7 @@ local M = {}
 function M.get_common_options()
   return {
     shortcuts = {
+      close_tab = "q",
       activate = "<CR>",
       scroll_backward = "<C-b>",
       scroll_forward = "<C-f>",

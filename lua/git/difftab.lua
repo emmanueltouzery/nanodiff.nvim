@@ -219,6 +219,13 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
 
+  if opts.shortcuts.close_tab then
+    vim.keymap.set(
+      'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
+      { noremap = true, silent = true, buffer = left_buf }
+    )
+  end
+
   if has_conflicts and opts.shortcuts.open_conflict_commits then
     vim.keymap.set(
       'n', opts.shortcuts.open_conflict_commits, function() open_conflict_commits(left_buf_data, opts) end,

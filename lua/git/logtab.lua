@@ -150,6 +150,13 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
 
+  if opts.shortcuts.close_tab then
+    vim.keymap.set(
+      'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
+      { noremap = true, silent = true, buffer = left_buf }
+    )
+  end
+
   if opts.shortcuts.scroll_backward then
     vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
       vim.api.nvim_win_call(bufdata.get_data(bottom_buf).diff1_win, function()
