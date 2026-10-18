@@ -74,8 +74,12 @@ end
 
 local function get_header(log)
   local tab_data = tabdata.get_data()
+  local first_row = { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} }
+  for k, v in pairs(tab_data.search_settings or {}) do
+    table.insert(first_row, { " " .. v, "DiffviewSecondary" })
+  end
   return {
-    { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} },
+    first_row,
     {},
     { {tab_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #log), "DiffviewFilePanelCounter"} },
   }
@@ -142,8 +146,9 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
         io_helpers.async_progress("Refreshing log", function()
           local git_log = cmd_fn(git_root, vim.tbl_values(tab_data.search_settings))
           vim.schedule(function()
-            local tabdata = tabdata.get_data()
-            filetree.set_contents(tabdata.ft, tabdata.ft_st, git_log)
+            local tab_data = tabdata.get_data()
+            tab_data.ft_st.selected_item = nil -- reset selected_item
+            filetree.set_contents(tab_data.ft, tab_data.ft_st, git_log)
           end)
         end)
       end)

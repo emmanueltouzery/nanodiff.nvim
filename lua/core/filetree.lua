@@ -281,6 +281,9 @@ function M.redisplay(ft, ft_st, focus_selected)
   vim.bo[ft_st.bufnr].modifiable = false
   vim.bo[ft_st.bufnr].readonly = true
   if focus_selected and selection_line then
+    -- useful to actually force the window, this is needed for the log view, when
+    -- the filter popup closes, the cursor jumps to the wrong window out of the box
+    vim.api.nvim_set_current_win(ft_st.winnr)
     vim.api.nvim_win_set_cursor(ft_st.winnr, { selection_line, 0 })
   end
 end
