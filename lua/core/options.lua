@@ -45,6 +45,8 @@ function M.get_status_options()
       drop_changes = "X",
       open_conflict_commits = "L",
       conflict_modal_switch_commit = "<TAB>",
+      conflict_previous = "[x",
+      conflict_next = "]x",
     },
     conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })

@@ -15,7 +15,26 @@ local function format_section_header(section, has_selection)
   return {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} }
 end
 
-local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_buf)
+local function jump_match(matches, dir)
+  if #matches == 0 then return end
+  local cur = vim.api.nvim_win_get_cursor(0)[1]
+  
+  -- Default to wrap-around indices if no condition is met
+  local idx = (dir == "next" and 1) or #matches
+
+  for i, line in ipairs(matches) do
+    if dir == "next" and line > cur then 
+      idx = i; break                -- Stop at the very first match ahead of us
+    elseif dir == "prev" and line < cur then 
+      idx = i                       -- Keep updating until we pass the cursor, leaving the last valid one
+    end
+  end
+
+  vim.api.nvim_win_set_cursor(0, { matches[idx], 0 })
+  print(string.format("conflict [%d/%d]", idx, #matches))
+end
+
+local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_buf, opts)
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, section, item)
   difflayout.diff_tab_layout_load_buf(tab_data, section, item, function(win, path, rev, winbar)
@@ -35,6 +54,21 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
     table.insert(relevant_windows, tab_data.diff3_win)
   end
   difflayout.wait_for_windows_ready(relevant_windows, function()
+    if section.mid_sha then
+      local mid_buf = vim.api.nvim_win_get_buf(tab_data.diff3_win)
+      if opts.shortcuts.conflict_previous then
+        vim.keymap.set('n', opts.shortcuts.conflict_previous, function()
+          local conflict_lines = tab_data.conflicts_state.conflicts[item.path]
+          jump_match(conflict_lines, "prev")
+        end, { noremap = true, silent = true, buffer = mid_buf })
+      end
+      if opts.shortcuts.conflict_next then
+        vim.keymap.set('n', opts.shortcuts.conflict_next, function()
+          local conflict_lines = tab_data.conflicts_state.conflicts[item.path]
+          jump_match(conflict_lines, "next")
+        end, { noremap = true, silent = true, buffer = mid_buf })
+      end
+    end
     for _, winnr in ipairs(relevant_windows) do
       difflayout.win_set_diff(winnr)
     end
@@ -162,7 +196,10 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
     end,
     render_section = format_section_header,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
-      load_entry(ft, ft_st, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, skip_refresh_left_buf)
+      load_entry(
+        ft, ft_st, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, 
+        kip_refresh_left_buf, opts
+      )
     end,
     expand_default = true,
   })
