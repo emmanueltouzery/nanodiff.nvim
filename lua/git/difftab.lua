@@ -139,7 +139,7 @@ local function open_conflict_commits(left_buf_data, opts)
   end)
 end
 
-function M.open_diff_tab(sections, git_root, reload_index, opts)
+function M.open_diff_tab(sections, branch, git_root, reload_index, opts)
   vim.cmd("tabnew")
 
   local left_buf = vim.api.nvim_win_get_buf(0)
@@ -151,7 +151,10 @@ function M.open_diff_tab(sections, git_root, reload_index, opts)
   left_buf_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.title end,
     section_get_items = function(s) return s.contents end,
-    get_header = function() return {} end, -- TODO
+    get_header = function() return {
+      { {"Branch: ", "DiffviewFilePanelPath"}, {branch, "DiffviewFilePanelCounter"} },
+      {},
+    } end,
     render_item = function(prefix, item, is_selected, extra)
       return tabcommon.tree_render_item(
         prefix, item, is_selected, extra, left_buf_data.conflicts_state, true
