@@ -97,6 +97,9 @@ function M.diff_tab_layout_load_buf(left_buf_data, section, item, win_load_buf)
     vim.api.nvim_win_close(left_buf_data.diff4_win, false)
     left_buf_data.diff4_win = nil
   end
+
+  -- after all the window churn, make sure the left window is focused
+  vim.api.nvim_set_current_win(left_buf_data.left_win)
 end
 
 function M.diff_tab_layout_init(left_buf, opts)
