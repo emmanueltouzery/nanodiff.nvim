@@ -78,10 +78,17 @@ local function get_header(log)
   for k, v in pairs(tab_data.search_settings or {}) do
     table.insert(first_row, { " " .. v, "DiffviewSecondary" })
   end
+  local title_row = {}
+  if type(tab_data.title) == "table" then
+    vim.list_extend(title_row, tab_data.title)
+  else
+    table.insert(title_row, {tab_data.title .. " ", "DiffviewFilePanelTitle"})
+  end
+  table.insert(title_row, {string.format("(%d)", #log), "DiffviewFilePanelCounter"})
   return {
     first_row,
     {},
-    { {tab_data.title .. " ", "DiffviewFilePanelTitle"}, {string.format("(%d)", #log), "DiffviewFilePanelCounter"} },
+    title_row
   }
 end
 

@@ -280,7 +280,16 @@ function M.log(opts)
   if type(buf) == "number" then
     single_file_path = vim.api.nvim_buf_get_name(buf)
   end
-  log.display_log_cmd("Log view", function(git_root, extra_params)
+  local function log_view_title(git_root)
+    local title = "Log view"
+    if single_file_path then
+      single_file_path = vim.fs.relpath(git_root, single_file_path)
+      title = { {title .. " ", "DiffviewFilePanelTitle"}, { single_file_path .. " ", "DiffviewFolderName" } }
+    end
+    return title
+  end
+
+  log.display_log_cmd(log_view_title, function(git_root, extra_params)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
     end
@@ -304,7 +313,7 @@ function M.log(opts)
 end
 
 function M.stashes(opts)
-  log.display_log_cmd("Stashes", function(git_root, extra_params)
+  log.display_log_cmd(function(git_root) return "Stashes" end, function(git_root, extra_params)
     local cmd = vim.iter({
       { "git", "-P",
       "-c", "gc.auto=0",

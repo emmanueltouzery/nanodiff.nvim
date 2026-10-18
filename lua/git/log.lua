@@ -86,12 +86,12 @@ function M.parse_git_log_output(stdout, opts)
   return commits
 end
 
-function M.display_log_cmd(title, cmd_fn, opts)
+function M.display_log_cmd(title_fn, cmd_fn, opts)
   io_helpers.async_progress("Loading git log", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     local git_log = cmd_fn(git_root)
     vim.schedule(function()
-      logtab.open_log_tab(title, git_log, git_root, cmd_fn, opts)
+      logtab.open_log_tab(title_fn(git_root), git_log, git_root, cmd_fn, opts)
     end)
   end)
 end
