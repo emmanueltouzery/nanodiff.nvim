@@ -2,7 +2,12 @@ local async = vim.async
 local options = require('core.options')
 local git_adapter = require('git.git')
 
-local M = {}
+local M = {
+  lib = {
+    filetree = require('core.filetree'),
+    tabdata = require('core.tabdata'),
+  },
+}
 
 local function with_vsc(opts, cb)
   async.run(function()

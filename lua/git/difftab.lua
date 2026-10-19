@@ -259,6 +259,13 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
 
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "NanodiffDiffReady",
+    data = {
+      tab_id = vim.api.nvim_get_current_tabpage(),
+    },
+  })
+
   if opts.shortcuts.close_tab then
     vim.keymap.set(
       'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
