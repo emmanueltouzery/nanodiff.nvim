@@ -124,11 +124,8 @@ local function get_diff_status(git_root, opts)
     left_sha = conflict_commits.ours, left_winbar = "OURS " .. conflict_commits.ours,
     mid_sha = "disk", mid_winbar = "LOCAL",
     right_sha = conflict_commits.theirs, right_winbar = "THEIRS " .. conflict_commits.theirs,
+    bottom_sha = conflict_commits.base, bottom_winbar = "BASE " .. conflict_commits.base,
   }
-  if opts.conflicts_display_mode == "ours_local_theirs_base" then
-    conflicts_section.bottom_sha = conflict_commits.base
-    conflicts_section.bottom_winbar = "BASE " .. conflict_commits.base
-  end
 
   return {
     conflicts_section,

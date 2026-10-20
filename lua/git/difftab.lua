@@ -37,7 +37,7 @@ end
 local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_buf, opts)
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, section, item)
-  difflayout.diff_tab_layout_load_buf(tab_data, section, item, function(win, path, rev, winbar)
+  difflayout.diff_tab_layout_load_buf(tab_data, section, item, opts, function(win, path, rev, winbar)
     tabcommon.win_load_buf(git_root, win, path, rev, winbar)
   end)
   tabcommon.win_load_buf(git_root, tab_data.diff1_win, item.path, item.left_sha or section.left_sha, section.left_winbar)
@@ -165,12 +165,18 @@ end
 local function open_conflict_commits(tab_data, opts)
   local section, item = filetree.get_cur_section_item(tab_data.ft_st)
   async.run(function()
-    local summary1 = io_helpers.run_cmd({"git", "show", section.left_sha, "--", item.path})
-    local summary2 = io_helpers.run_cmd({"git", "show", section.right_sha, "--", item.path})
+    local summary1 = io_helpers.run_cmd(
+      {"git", "log", "-p", section.bottom_sha .. ".." .. section.left_sha, "--", item.path},
+      {cwd = tab_data.git_root}
+    )
+    local summary2 = io_helpers.run_cmd(
+      {"git", "log", "-p", section.bottom_sha .. ".." .. section.right_sha, "--", item.path},
+      {cwd = tab_data.git_root}
+    )
     vim.schedule(function()
       open_side_by_side_popup(git_text_to_buffer(summary1), git_text_to_buffer(summary2), opts)
     end)
-  end)
+  end):raise_on_error()
 end
 
 function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, opts)

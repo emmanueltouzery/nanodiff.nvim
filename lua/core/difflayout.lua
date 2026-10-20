@@ -44,7 +44,8 @@ end
 
 -- diff layout is one window at the bottom, then the diffed windows on top
 -- of it, but which may include more than two diff windows in case of conflicts
-function M.diff_tab_layout_load_buf(tab_data, section, item, win_load_buf)
+function M.diff_tab_layout_load_buf(tab_data, section, item, opts, win_load_buf)
+  local has_bottom_sha = section.bottom_sha ~= nil and opts.conflicts_display_mode == "ours_local_theirs_base"
   if section.mid_sha then
     if tab_data.diff3_win == nil then
       -- whatever, give it any buf for now
@@ -53,7 +54,7 @@ function M.diff_tab_layout_load_buf(tab_data, section, item, win_load_buf)
         win = tab_data.diff1_win,
       })
     end
-    if not section.bottom_sha then
+    if not has_bottom_sha then
       -- MESSY... if bottom_sha is present, we'll tear down and recreate this window...
       win_load_buf(tab_data.diff3_win, item.path, section.mid_sha, section.mid_winbar)
     end
@@ -61,7 +62,7 @@ function M.diff_tab_layout_load_buf(tab_data, section, item, win_load_buf)
     vim.api.nvim_win_close(tab_data.diff3_win, false)
     tab_data.diff3_win = nil
   end
-  if section.bottom_sha then
+  if has_bottom_sha then
     if tab_data.diff4_win == nil then
       -- must close and reopen diff2 and diff3
 
