@@ -178,6 +178,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
 
   local left_buf = vim.api.nvim_win_get_buf(0)
   local tab_data = tabdata.get_data()
+  tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
 
   local left_win = vim.api.nvim_get_current_win()
   tab_data.left_win = left_win

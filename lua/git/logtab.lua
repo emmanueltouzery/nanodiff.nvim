@@ -98,6 +98,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   local bottom_win = vim.api.nvim_get_current_win()
 
   local tab_data = tabdata.get_data()
+  tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.bottom_win = bottom_win
   tab_data.title = title
 
