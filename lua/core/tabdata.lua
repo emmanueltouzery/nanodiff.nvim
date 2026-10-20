@@ -20,10 +20,11 @@ end
 vim.api.nvim_create_autocmd("TabClosed", {
   group = vim.api.nvim_create_augroup("MyPluginStateCleanup", { clear = true }),
   callback = function(args)
-    for _, cleanup_fn in ipairs((state[args.file] or {}).__cleanups or {}) do
+    local closing_tabnumber = tonumber(vim.fn.expand("<afile>"))
+    for _, cleanup_fn in ipairs((state[closing_tabnumber] or {}).__cleanups or {}) do
       cleanup_fn()
     end
-    state[args.file] = nil
+    state[closing_tabnumber] = nil
   end,
 })
 
