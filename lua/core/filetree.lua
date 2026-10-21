@@ -201,6 +201,7 @@ function M.create_ft(params)
     render_section = params.render_section,
     item_activated = params.item_activated,
     expand_default = params.expand_default,
+    lines_between_sections = params.lines_between_sections,
   }
 end
 
@@ -263,8 +264,15 @@ function M.redisplay(ft, ft_st, focus_selected)
   ft_st.line_to_item = {}
 
   local selection_line = nil
-  for _, section in ipairs(ft_st.sections) do
+  for section_idx, section in ipairs(ft_st.sections) do
     local section_key = ft.section_get_key(section)
+    if ft.lines_between_sections ~= nil then
+      local prev_section = nil
+      if section_idx > 1 then
+        prev_section = ft_st.sections[section_idx-1]
+      end
+      vim.list_extend(ft_st.lines, ft.lines_between_sections(prev_section, section))
+    end
     local selected_path = nil
     if ft_st.selected_item ~= nil and ft.section_get_key(ft_st.selected_item.section) == section_key then
       selected_path = ft_st.selected_item.item.path
