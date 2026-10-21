@@ -22,7 +22,6 @@ function M.render_lines(bufnr, lines)
         local text = chunk[1]
         local hl_group = chunk[2]
 
-
         if hl_group then
           if hl_group:find("+", 1, true) then
             -- virtual text

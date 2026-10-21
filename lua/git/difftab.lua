@@ -324,6 +324,19 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
+  if opts.shortcuts.jump_to_first then
+    vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
+      local ft_st = tabdata.get_data().ft_st
+      for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
+        if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
+          vim.api.nvim_win_set_cursor(0, {i, 0})
+          filetree.handle_enter( tabdata.get_data().ft, ft_st)
+          return
+        end
+      end
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
+
   if opts.shortcuts.stage_unstage then
     vim.keymap.set('n', opts.shortcuts.stage_unstage, function()
       -- will stage the item under the cursor

@@ -26,6 +26,9 @@ end
 
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
+    shortcuts = {
+      jump_to_first = "F",
+    },
     panel_width = 40,
   })
 end
