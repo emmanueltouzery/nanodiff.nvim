@@ -47,7 +47,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
   end
   -- activate diff mode only when all windows are ready
   local relevant_windows = {tab_data.diff1_win, tab_data.diff2_win}
-  if section.bottom_sha then
+  if section.base_sha then
     table.insert(relevant_windows, tab_data.diff4_win)
   end
   if section.mid_sha then
@@ -171,12 +171,12 @@ local function open_conflict_commits(tab_data, opts)
 
     -- base ↔ ours: > = changes ours added; < = changes ours lacks (reversed relative to base)
     local commits_base_ours = io_helpers.run_cmd(
-      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.bottom_sha .. "..." .. section.left_sha, "--", item.path},
+      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.base_sha .. "..." .. section.left_sha, "--", item.path},
       {cwd = tab_data.git_root}
     ):gsub("(commit %x+ )%(<%)", "%1(REVERSED)")
     -- base ↔ theirs: > = changes theirs added; < = changes theirs lacks (reversed relative to base)
     local commits_base_theirs = io_helpers.run_cmd(
-      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.bottom_sha .. "..." .. section.right_sha, "--", item.path},
+      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.base_sha .. "..." .. section.right_sha, "--", item.path},
       {cwd = tab_data.git_root}
     ):gsub("(commit %x+ )%(<%)", "%1(REVERSED)")
     vim.schedule(function()
