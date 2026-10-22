@@ -347,6 +347,13 @@ end
 
 function M.stashes(opts)
   log.display_log_cmd(function(git_root) return "Stashes" end, function(git_root, extra_params)
+    -- if there are no stashes, the following calls don't react well, check first
+    if io_helpers.async_sys({"git", "rev-parse", "--verify", "--quiet", "refs/stash"}).code ~= 0 then
+      vim.schedule(function()
+        vim.notify("No stashes", vim.log.levels.WARN, {source="nanodiff"})
+      end)
+      return
+    end
     local cmd = vim.iter({
       { "git", "-P",
       "-c", "gc.auto=0",

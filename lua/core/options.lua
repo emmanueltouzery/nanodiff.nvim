@@ -24,6 +24,15 @@ function M.get_log_options()
   })
 end
 
+function M.get_stashes_options()
+  return vim.tbl_deep_extend("force", M.get_log_options(), {
+    shortcuts = {
+      unstash = "<C-enter>",
+      drop_stash = "<C-del>",
+    },
+  })
+end
+
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {

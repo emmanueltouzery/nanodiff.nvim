@@ -59,7 +59,7 @@ function M.log(opts)
 end
 
 function M.stashes(opts)
-  opts = options.apply_option_defaults(opts, options.get_log_options())
+  opts = options.apply_option_defaults(opts, options.get_stashes_options())
   with_vsc(opts, function(adapter, opts)
     adapter.stashes(opts)
   end)

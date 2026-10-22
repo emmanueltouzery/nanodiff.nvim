@@ -204,6 +204,44 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
       filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
+
+  if opts.shortcuts.unstash then
+    vim.keymap.set('n', opts.shortcuts.unstash, function()
+      async.run(function()
+        local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
+        if section == nil then
+          -- no item under the cursor
+          return
+        end
+        io_helpers.run_cmd({"git", "stash", "pop", section.ref_log}, {cwd = git_root})
+        vim.schedule(function() vim.cmd.tabclose() end)
+      end):raise_on_error()
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
+
+  if opts.shortcuts.drop_stash then
+    vim.keymap.set('n', opts.shortcuts.drop_stash, function()
+      async.run(function()
+        local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
+        if section == nil then
+          -- no item under the cursor
+          return
+        end
+        io_helpers.run_cmd({"git", "stash", "drop", section.ref_log}, {cwd = git_root})
+        local git_log = cmd_fn(git_root)
+        if git_log == nil then
+          -- will be nil if there are no more stashes
+          vim.cmd.tabclose()
+        else
+          vim.schedule(function()
+            local tab_data = tabdata.get_data()
+            tab_data.ft_st.selected_item = nil -- reset selected_item
+            filetree.set_contents(tab_data.ft, tab_data.ft_st, git_log)
+          end)
+        end
+      end):raise_on_error()
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
 end
 
 return M
