@@ -75,7 +75,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
   end)
 end
 
-local function open_side_by_side_popup(buf1, buf2, opts)
+local function open_side_by_side_popup(side1, side2, opts)
     local ui = vim.api.nvim_list_uis()[1]
     local width = math.floor(ui.width * 2 / 3)
     local height = math.floor(ui.height * 2 / 3)
@@ -127,16 +127,18 @@ local function open_side_by_side_popup(buf1, buf2, opts)
         border = border_no_left,
     }
 
-    local win_left = vim.api.nvim_open_win(buf1, true, opts_left)
-    local win_right = vim.api.nvim_open_win(buf2, false, opts_right)
+    local win_left = vim.api.nvim_open_win(side1.buf, true, opts_left)
+    vim.wo[win_left].winbar = "%= " .. side1.title .. " %="
+    local win_right = vim.api.nvim_open_win(side2.buf, false, opts_right)
+    vim.wo[win_right].winbar = "%= " .. side2.title .. " %="
 
     vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
       vim.api.nvim_set_current_win(win_right)
-    end, { buffer = buf1, silent = true })
+    end, { buffer = side1.buf, silent = true })
 
     vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
       vim.api.nvim_set_current_win(win_left)
-    end, { buffer = buf2, silent = true })
+    end, { buffer = side2.buf, silent = true })
 
     for _, win in ipairs({ win_left, win_right }) do
         local bufnr = vim.api.nvim_win_get_buf(win)
@@ -178,7 +180,13 @@ local function open_conflict_commits(tab_data, opts)
       {cwd = tab_data.git_root}
     ):gsub("(commit %x+ )%(<%)", "%1(REVERSED)")
     vim.schedule(function()
-      open_side_by_side_popup(git_text_to_buffer(commits_base_ours), git_text_to_buffer(commits_base_theirs), opts)
+      open_side_by_side_popup({
+        title = "commits base ↔ ours",
+        buf = git_text_to_buffer(commits_base_ours),
+      }, {
+        title = "commits base ↔ theirs",
+        buf = git_text_to_buffer(commits_base_theirs),
+      }, opts)
     end)
   end):raise_on_error()
 end
