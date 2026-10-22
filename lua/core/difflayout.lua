@@ -15,7 +15,7 @@ function M.win_set_diff(winnr)
 end
 
 function M.win_load_null_file(winnr)
-  local bufname = "nanogit://null"
+  local bufname = "nanodiff://null"
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr == -1 then
     bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch

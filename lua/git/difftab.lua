@@ -249,7 +249,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
           -- may have changed
           for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
             local b = vim.api.nvim_win_get_buf(w)
-            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanogit://:") then
+            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanodiff://:") then
               -- if we delete the buffer, that would close the window
               -- because buffers a "hidden=wipe", that'll clean it
               difflayout.win_load_null_file(w)

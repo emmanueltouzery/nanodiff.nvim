@@ -6,6 +6,7 @@ local M = {
   lib = {
     filetree = require('core.filetree'),
     tabdata = require('core.tabdata'),
+    io_helpers = require('core.io_helpers'),
   },
 }
 
