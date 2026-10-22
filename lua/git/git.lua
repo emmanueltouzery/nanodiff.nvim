@@ -212,9 +212,45 @@ local function get_diff_revspec(git_root, revspec)
   }}
 end
 
+--- Converts a git diff revspec into an equivalent git log commit range string.
+-- @param revspec string The input revspec (e.g., "master", "master...", "A..B", "A...B")
+-- @return string The converted range suitable for git log (e.g., "merge_base..B")
+local function async_diff_to_log_revspec(revspec)
+  if revspec == "" then
+    return "HEAD"
+  end
+
+  -- 1. Check for triple-dot range: "A...B" or "A..."
+  local a_triple, b_triple = revspec:match("^([^.]*)%.%.%.([^.]*)$")
+  if a_triple then
+    local ref_a = a_triple ~= "" and a_triple or "HEAD"
+    local ref_b = b_triple ~= "" and b_triple or "HEAD"
+
+    local merge_base = vim.trim(io_helpers.run_cmd({"git", "merge-base", ref_a, ref_b}, {cwd = git_root}))
+    if merge_base then
+      return string.format("%s..%s", merge_base, ref_b)
+    else
+      -- Fallback if merge-base fails (e.g., unrelated histories)
+      return string.format("%s..%s", ref_a, ref_b)
+    end
+  end
+
+  -- 2. Check for double-dot range: "A..B" or "A.."
+  local a_double, b_double = revspec:match("^([^.]*)%.%.([^.]*)$")
+  if a_double then
+    local ref_a = a_double ~= "" and a_double or "HEAD"
+    local ref_b = b_double ~= "" and b_double or "HEAD"
+    return string.format("%s..%s", ref_a, ref_b)
+  end
+
+  -- 3. Single rev spec: "master" -> compares commit 'master' to current HEAD
+  return string.format("%s..HEAD", revspec)
+end
+
 local function revspec_display_commits_popup(git_root, left_buf, revspec)
   io_helpers.async_progress("Loading git revspec log", function()
-    local git_commits = io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", revspec}, {cwd = git_root})
+    local log_revspec = async_diff_to_log_revspec(revspec)
+    local git_commits = io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", log_revspec}, {cwd = git_root})
     vim.schedule(function()
       local git_commits_lines = vim.split(git_commits, "[\r\n]")
 
