@@ -165,16 +165,20 @@ end
 local function open_conflict_commits(tab_data, opts)
   local section, item = filetree.get_cur_section_item(tab_data.ft_st)
   async.run(function()
-    local summary1 = io_helpers.run_cmd(
-      {"git", "log", "-p", section.bottom_sha .. ".." .. section.left_sha, "--", item.path},
+    local fmt = "--format=commit %H (%m)%nAuthor: %an <%ae>%nDate:   %ad%n%n%w(0,4,4)%B"
+
+    -- base ↔ ours: > = changes ours added; < = changes ours lacks (reversed relative to base)
+    local commits_base_ours = io_helpers.run_cmd(
+      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.bottom_sha .. "..." .. section.left_sha, "--", item.path},
       {cwd = tab_data.git_root}
-    )
-    local summary2 = io_helpers.run_cmd(
-      {"git", "log", "-p", section.bottom_sha .. ".." .. section.right_sha, "--", item.path},
+    ):gsub("(commit %x+ )%(<%)", "%1(REVERSED)")
+    -- base ↔ theirs: > = changes theirs added; < = changes theirs lacks (reversed relative to base)
+    local commits_base_theirs = io_helpers.run_cmd(
+      {"git", "log", "-p", "--left-right", "--cherry-pick", fmt, section.bottom_sha .. "..." .. section.right_sha, "--", item.path},
       {cwd = tab_data.git_root}
-    )
+    ):gsub("(commit %x+ )%(<%)", "%1(REVERSED)")
     vim.schedule(function()
-      open_side_by_side_popup(git_text_to_buffer(summary1), git_text_to_buffer(summary2), opts)
+      open_side_by_side_popup(git_text_to_buffer(commits_base_ours), git_text_to_buffer(commits_base_theirs), opts)
     end)
   end):raise_on_error()
 end
