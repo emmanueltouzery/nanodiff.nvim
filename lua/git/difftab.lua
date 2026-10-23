@@ -222,7 +222,11 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
     end,
     expand_default = true,
     lines_between_sections = function(prev_section, section)
-      if prev_section ~= nil then return {""} else return {} end
+      if prev_section ~= nil and (#prev_section.contents > 0 or prev_section.always_show) then
+        return {""}
+      else 
+        return {}
+      end
     end
   })
   tab_data.ft_st = filetree.create_ft_st({
