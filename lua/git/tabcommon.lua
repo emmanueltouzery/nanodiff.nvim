@@ -28,19 +28,22 @@ local function win_load_sha_file(winnr, git_root, path, sha, winbar)
       local lines = vim.split(contents, "\n", { plain = true })
 
       vim.schedule(function()
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+        -- the buffer is wipe, may have been closed by now if the user moves
+        -- between files quickly
+        local ok, err = pcall(vim.api.nvim_buf_set_lines, bufnr, 0, -1, false, lines)
+        if ok then
+          vim.bo[bufnr].readonly = true
+          vim.api.nvim_buf_call(bufnr, function()
+            vim.cmd("filetype detect")
+          end)
+          vim.bo[bufnr].readonly = true
+          vim.bo[bufnr].modified = false
+          vim.bo[bufnr].modifiable = false
 
-        vim.bo[bufnr].readonly = true
-        vim.api.nvim_buf_call(bufnr, function()
-          vim.cmd("filetype detect")
-        end)
-        vim.bo[bufnr].readonly = true
-        vim.bo[bufnr].modified = false
-        vim.bo[bufnr].modifiable = false
-
-        vim.api.nvim_win_set_buf(winnr, bufnr)
-        if winbar ~= nil then
-          vim.wo[winnr].winbar = winbar
+          vim.api.nvim_win_set_buf(winnr, bufnr)
+          if winbar ~= nil then
+            vim.wo[winnr].winbar = winbar
+          end
         end
       end)
     end):raise_on_error()

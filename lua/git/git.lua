@@ -45,7 +45,7 @@ local function get_diff_status(git_root, opts)
   -- need to fetch the per-file diffstats separately
   local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({"git", "diff", "HEAD", "--numstat"}))
 
-  local output = io_helpers.run_cmd({"git", "status", "--porcelain=v2"}, {cwd = git_root})
+  local output = io_helpers.run_cmd({"git", "status", "--porcelain=v2", "--untracked-files=all"}, {cwd = git_root})
 
   local staged = {}
   local changes = {}
