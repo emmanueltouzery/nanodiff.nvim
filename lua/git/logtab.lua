@@ -126,12 +126,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
 
-  vim.api.nvim_exec_autocmds("User", {
-    pattern = "NanodiffLogReady",
-    data = {
-      tab_id = vim.api.nvim_get_current_tabpage(),
-    },
-  })
+  vim.bo[bottom_buf].filetype = "NanodiffLogPanel"
 
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()

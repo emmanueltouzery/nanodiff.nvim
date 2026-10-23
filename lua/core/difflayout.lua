@@ -112,7 +112,6 @@ function M.diff_tab_layout_init(left_buf, opts)
   vim.bo[left_buf].buftype = "nofile"
   vim.bo[left_buf].bufhidden = "wipe"
   vim.bo[left_buf].swapfile = false
-  vim.bo[left_buf].filetype = "NanodiffFileHistory"
 
   -- Split to create the right window
   vim.cmd("rightbelow vsplit")
@@ -150,7 +149,6 @@ function M.setup_log_tab_layout(bottom_buf, opts)
   vim.bo[bottom_buf].buftype = "nofile"
   vim.bo[bottom_buf].bufhidden = "wipe"
   vim.bo[bottom_buf].swapfile = false
-  vim.bo[bottom_buf].filetype = "NanodiffFiles"
 
   -- Open a new window above the current one
   tab_data.diff1_win = vim.api.nvim_open_win(0, true, {
