@@ -59,6 +59,7 @@ function M.get_status_options()
       conflict_modal_switch_commit = "<TAB>",
       conflict_previous = "[x",
       conflict_next = "]x",
+      mark_file_for_diff = "+",
     },
     conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })

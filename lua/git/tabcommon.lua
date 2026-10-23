@@ -133,7 +133,7 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar)
   end
 end
 
-function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat)
+function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat, extra_icon)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
   local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
@@ -164,6 +164,9 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
       {" -> ", nil},
       {item.path .. diffstat_prefix, path_hl},
     }
+    if extra_icon then
+      table.insert(line_info, {extra_icon, "DiffviewFilePanelSelected+right_align"})
+    end
     if item.added ~= nil and item.added ~= 0 then
       table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
     end
@@ -177,6 +180,9 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
       {icon .. " ", icon_hl_group},
       {item.path .. diffstat_prefix, path_hl},
     }
+    if extra_icon then
+      table.insert(line_info, {extra_icon, "DiffviewFilePanelSelected+right_align"})
+    end
     if item.added ~= nil and item.added ~= 0 then
       table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
     end

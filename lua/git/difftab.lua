@@ -209,15 +209,21 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
       {},
     } end,
     render_item = function(prefix, item, is_selected, extra)
+      local extra_icon = nil
+      if tab_data.marked ~= nil and extra.item_full_path == tab_data.marked.item.path then
+        extra_icon = " "
+      end
       return tabcommon.tree_render_item(
-        prefix, item, is_selected, extra, tab_data.conflicts_state, true
+        prefix, item, is_selected, extra, tab_data.conflicts_state,
+        true, -- right_align_diffstat
+        extra_icon
       )
     end,
     render_section = format_section_header,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
       load_entry(
         ft, ft_st, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, 
-        kip_refresh_left_buf, opts
+        skip_refresh_left_buf, opts
       )
     end,
     expand_default = true,
@@ -296,7 +302,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
 
   if has_conflicts and opts.shortcuts.open_conflict_commits then
     vim.keymap.set(
-      'n', opts.shortcuts.open_conflict_commits, function() open_conflict_commits(tab_data, opts) end,
+      'n', opts.shortcuts.open_conflict_commits, function() open_conflict_commits(tabdata.get_data(), opts) end,
       { noremap = true, silent = true, buffer = left_buf }
     )
   end
@@ -398,6 +404,35 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
           )
         end)
       end):raise_on_error()
+    end, { noremap = true, silent = true, buffer = left_buf })
+  end
+
+  if opts.shortcuts.mark_file_for_diff then
+    vim.keymap.set('n', opts.shortcuts.mark_file_for_diff, function()
+      local tab_data = tabdata.get_data()
+      local section, item = filetree.get_cur_section_item(tab_data.ft_st)
+      if item then
+        if tab_data.marked then
+          tabcommon.win_load_buf(
+            git_root, tab_data.diff1_win, tab_data.marked.item.path, 
+            tab_data.marked.item.left_sha or tab_data.marked.section.left_sha,
+            tab_data.marked.section.left_winbar
+          )
+          tabcommon.win_load_buf(
+            git_root, tab_data.diff2_win, item.path,
+            item.right_sha or section.right_sha, section.right_winbar
+          )
+          -- did the "wait_for_windows_ready" thing here, but often
+          -- the first diff window is already the right one, so it doesn't
+          -- need to get loaded. i think it's not needed for two windows anyway.
+          difflayout.win_set_diff(tab_data.diff1_win)
+          difflayout.win_set_diff(tab_data.diff2_win)
+          tab_data.marked = nil
+        else
+          tab_data.marked = { section = section, item = item }
+        end
+        filetree.redisplay(tab_data.ft, tab_data.ft_st, false)
+      end
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
