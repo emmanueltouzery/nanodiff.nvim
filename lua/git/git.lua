@@ -125,6 +125,7 @@ local function get_diff_status(git_root, opts)
     mid_sha = "disk", mid_winbar = "LOCAL",
     right_sha = conflict_commits.theirs, right_winbar = "THEIRS " .. conflict_commits.theirs,
     base_sha = conflict_commits.base, bottom_winbar = "BASE " .. conflict_commits.base,
+    conflict_desc = conflict_commits.desc,
   }
 
   return {

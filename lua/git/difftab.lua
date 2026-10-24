@@ -176,7 +176,20 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
   end)
 end
 
-local function open_side_by_side_popup(side1, side2, opts)
+local function git_text_to_buffer(text)
+  local summary_lines = vim.split(text, '\n', { trimempty = true })
+  local bufnr = vim.api.nvim_create_buf(false, false)
+  vim.bo[bufnr].filetype = "git"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].buftype = "nofile"
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, summary_lines)
+  vim.bo[bufnr].readonly = true
+  vim.bo[bufnr].modified = false
+  vim.bo[bufnr].modifiable = false
+  return bufnr
+end
+
+local function open_side_by_side_popup(side1, side2, title, opts)
     local ui = vim.api.nvim_list_uis()[1]
     local width = math.floor(ui.width * 2 / 3)
     local height = math.floor(ui.height * 2 / 3)
@@ -228,10 +241,25 @@ local function open_side_by_side_popup(side1, side2, opts)
         border = border_no_left,
     }
 
+    local opts_title = {
+        relative = "editor",
+        width = width + 2, -- +2 for left & right borders
+        height = 1,
+        row = row + height + 2, -- +2 for bottom & bottom borders
+        col = col,
+        style = "minimal",
+        border = "none",
+    }
+
+    local title_bufnr = git_text_to_buffer(string.rep(" ", width/2 - (#title/2)) .. title)
+    local ns_id = vim.api.nvim_create_namespace("nanodiff_ui_highlights")
+    vim.api.nvim_buf_add_highlight(title_bufnr, ns_id, "DiffviewFilePanelTitle", 0, 0, -1)
+
     local win_left = vim.api.nvim_open_win(side1.buf, true, opts_left)
     vim.wo[win_left].winbar = "%= " .. side1.title .. " %="
     local win_right = vim.api.nvim_open_win(side2.buf, false, opts_right)
     vim.wo[win_right].winbar = "%= " .. side2.title .. " %="
+    local win_title = vim.api.nvim_open_win(title_bufnr, false, opts_title)
 
     vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
       vim.api.nvim_set_current_win(win_right)
@@ -246,23 +274,11 @@ local function open_side_by_side_popup(side1, side2, opts)
         vim.keymap.set('n', 'q', function()
             pcall(vim.api.nvim_win_close, win_left, true)
             pcall(vim.api.nvim_win_close, win_right, true)
+            pcall(vim.api.nvim_win_close, win_title, true)
         end, { buffer = bufnr, silent = true })
     end
 
     return win_left, win_right
-end
-
-local function git_text_to_buffer(text)
-  local summary_lines = vim.split(text, '\n', { trimempty = true })
-  local bufnr = vim.api.nvim_create_buf(false, false)
-  vim.bo[bufnr].filetype = "git"
-  vim.bo[bufnr].bufhidden = "wipe"
-  vim.bo[bufnr].buftype = "nofile"
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, summary_lines)
-  vim.bo[bufnr].readonly = true
-  vim.bo[bufnr].modified = false
-  vim.bo[bufnr].modifiable = false
-  return bufnr
 end
 
 local function open_conflict_commits(tab_data, opts)
@@ -287,7 +303,7 @@ local function open_conflict_commits(tab_data, opts)
       }, {
         title = "commits base ↔ theirs",
         buf = git_text_to_buffer(commits_base_theirs),
-      }, opts)
+      }, section.conflict_desc, opts)
     end)
   end):raise_on_error()
 end

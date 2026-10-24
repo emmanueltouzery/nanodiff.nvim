@@ -30,10 +30,15 @@ local function find_conflicting_stash(git_root)
   local function blob_at(rev)
     return vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--verify", "-q", rev .. ":" .. path}, {cwd = git_root}))
   end
-  local stashes = io_helpers.run_cmd({"git", "stash", "list", "--format=%H"}, {cwd = git_root})
-  for sha in stashes:gmatch("%x+") do
-    if blob_at(sha) == stages[3] and blob_at(sha .. "^1") == stages[1] then
-      return sha
+
+  -- Request both the full hash (%H) for comparison, and the short hash (%h) for display
+  local stashes = io_helpers.run_cmd({"git", "stash", "list", "--format=%gd %h %H"}, {cwd = git_root})
+  for ref, short_sha, full_sha in stashes:gmatch("(stash@%b{}) (%x+) (%x+)") do
+    if blob_at(full_sha) == stages[3] and blob_at(full_sha .. "^1") == stages[1] then
+      return {
+        name = ref,       -- e.g., "stash@{1}"
+        sha = short_sha,
+      }
     end
   end
   return nil
@@ -41,39 +46,62 @@ end
 
 function M.get_conflict_commits(git_root)
   if vim.uv.fs_access(index_watcher.get_git_path(git_root, "MERGE_HEAD"), "R") then
+    local theirs = ref_to_sha(git_root, "MERGE_HEAD")
     return {
       ours = ref_to_sha(git_root, "HEAD"),
-      theirs = ref_to_sha(git_root, "MERGE_HEAD"),
-      base = vim.trim(io_helpers.run_cmd({"git", "merge-base", "HEAD", "MERGE_HEAD"}, {cwd = git_root}))
+      theirs = theirs,
+      base = vim.trim(io_helpers.run_cmd({"git", "merge-base", "HEAD", "MERGE_HEAD"}, {cwd = git_root})),
+      desc = string.format("Merging commit %s into your current branch.", theirs),
     }
   elseif vim.uv.fs_access(index_watcher.get_git_path(git_root, "CHERRY_PICK_HEAD"), "R") then
+    local theirs = ref_to_sha(git_root, "CHERRY_PICK_HEAD")
     return {
       ours = ref_to_sha(git_root, "HEAD"),
-      theirs = ref_to_sha(git_root, "CHERRY_PICK_HEAD"),
-      base = ref_to_sha(git_root, "CHERRY_PICK_HEAD~1")
+      theirs = theirs,
+      base = ref_to_sha(git_root, "CHERRY_PICK_HEAD~1"),
+      desc = string.format("Cherry-picking commit %s.", theirs),
     }
   elseif vim.uv.fs_access(index_watcher.get_git_path(git_root, "REVERT_HEAD"), "R") then
+    local revert_sha = ref_to_sha(git_root, "REVERT_HEAD")
     return {
       ours = ref_to_sha(git_root, "HEAD"),
       theirs = ref_to_sha(git_root, "REVERT_HEAD~1"),
-      base = ref_to_sha(git_root, "REVERT_HEAD")
+      base = revert_sha,
+      desc = string.format("Reverting commit %s.", revert_sha),
     }
   else
-    local rebase_sha = index_watcher.get_git_path(git_root, "rebase-merge/stopped-sha")
-    if vim.uv.fs_access(rebase_sha, "R") then
-      local sha = vim.trim(io.open(rebase_sha):read("*a"))
+    local rebase_sha_path = index_watcher.get_git_path(git_root, "rebase-merge/stopped-sha")
+    if vim.uv.fs_access(rebase_sha_path, "R") then
+      local sha = vim.trim(io.open(rebase_sha_path):read("*a"))
+
+      local branch_name = nil
+      local branch_file = index_watcher.get_git_path(git_root, "rebase-merge/head-name")
+      if vim.uv.fs_access(branch_file, "R") then
+        local f = io.open(branch_file, "r")
+        if f then
+          branch_name = vim.trim(f:read("*a")):gsub("^refs/heads/", "")
+          f:close()
+        end
+      end
+
+      local desc = branch_name 
+        and string.format("Rebasing branch '%s' at commit %s.", branch_name, sha)
+        or string.format("Rebasing at commit %s.", sha)
+
       return {
         ours = ref_to_sha(git_root, "HEAD"),
         theirs = sha,
-        base = sha .. "~1"
+        base = sha .. "~1",
+        desc = desc,
       }
     end 
     local stash = find_conflicting_stash(git_root)
     if stash then
       return {
         ours = ref_to_sha(git_root, "HEAD"),
-        theirs = ref_to_sha(git_root, stash),
-        base = ref_to_sha(git_root, stash .. "^1")
+        theirs = stash.sha,
+        base = stash.sha .. "^1",
+        desc = string.format("Applying conflicting stash %s (%s).", stash.name, stash.sha),
       }
     end
     -- i could at least display the conflicted files contents...
