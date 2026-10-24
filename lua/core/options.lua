@@ -63,6 +63,9 @@ function M.get_status_options()
       conflict_choose_ours = "<leader>co",
       conflict_choose_theirs = "<leader>ct",
       conflict_choose_all = "<leader>ca",
+      all_conflicts_choose_ours = "<leader>cO",
+      all_conflicts_choose_theirs = "<leader>cT",
+      all_conflicts_choose_all = "<leader>cA",
     },
     conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })
