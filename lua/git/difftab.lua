@@ -58,14 +58,69 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
       local mid_buf = vim.api.nvim_win_get_buf(tab_data.diff3_win)
       if opts.shortcuts.conflict_previous then
         vim.keymap.set('n', opts.shortcuts.conflict_previous, function()
-          local conflict_lines = tab_data.conflicts_state.conflicts[item.path]
+          local conflict_lines = vim.tbl_map(function(c) return c.start_lnum end, tab_data.conflicts_state.conflicts[item.path])
           jump_match(conflict_lines, "prev")
         end, { noremap = true, silent = true, buffer = mid_buf })
       end
       if opts.shortcuts.conflict_next then
         vim.keymap.set('n', opts.shortcuts.conflict_next, function()
-          local conflict_lines = tab_data.conflicts_state.conflicts[item.path]
+          local conflict_lines = vim.tbl_map(function(c) return c.start_lnum end, tab_data.conflicts_state.conflicts[item.path])
           jump_match(conflict_lines, "next")
+        end, { noremap = true, silent = true, buffer = mid_buf })
+      end
+
+      local function get_conflict_at_line()
+        local tab_data = tabdata.get_data()
+        local lnum = vim.fn.line(".")
+        for _, conflict in ipairs(tab_data.conflicts_state.conflicts[item.path]) do
+          if conflict.start_lnum <= lnum and conflict.end_lnum >= lnum then
+            return conflict
+          end
+        end
+        return nil
+      end
+
+      if opts.shortcuts.conflict_choose_ours then
+        vim.keymap.set('n', opts.shortcuts.conflict_choose_ours, function()
+          local conflict = get_conflict_at_line()
+          if conflict then
+            if conflict.base_lnum then
+              -- if base_lnum is present, drop between base_lnum and end_lnum
+              vim.api.nvim_buf_set_lines(mid_buf, conflict.base_lnum - 1, conflict.end_lnum, true, {})
+            else
+              -- if base_lnum is not present, drop between sep_lnum and end_lnum
+              vim.api.nvim_buf_set_lines(mid_buf, conflict.sep_lnum - 1, conflict.end_lnum, true, {})
+            end
+            -- drop start_lnum (do it at the end otherwise it shifts line numbers for the other operations)
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.start_lnum - 1, conflict.start_lnum, true, {})
+          end
+        end, { noremap = true, silent = true, buffer = mid_buf })
+      end
+
+      if opts.shortcuts.conflict_choose_theirs then
+        vim.keymap.set('n', opts.shortcuts.conflict_choose_theirs, function()
+          local conflict = get_conflict_at_line()
+          if conflict then
+            -- drop end_lnum (do it at the start otherwise other operations shifts line numbers for it)
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.end_lnum - 1, conflict.end_lnum, true, {})
+            -- drop between start_lnum and sep_lnum
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.start_lnum - 1, conflict.sep_lnum, true, {})
+          end
+        end, { noremap = true, silent = true, buffer = mid_buf })
+      end
+
+      if opts.shortcuts.conflict_choose_all then
+        vim.keymap.set('n', opts.shortcuts.conflict_choose_all, function()
+          local conflict = get_conflict_at_line()
+          if conflict then
+            -- drop separators, from end to start (to avoid line numbers shifting)
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.end_lnum - 1, conflict.end_lnum, true, {})
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.sep_lnum - 1, conflict.sep_lnum, true, {})
+            if conflict.base_lnum then
+              vim.api.nvim_buf_set_lines(mid_buf, conflict.base_lnum - 1, conflict.base_lnum, true, {})
+            end
+            vim.api.nvim_buf_set_lines(mid_buf, conflict.start_lnum - 1, conflict.start_lnum, true, {})
+          end
         end, { noremap = true, silent = true, buffer = mid_buf })
       end
     end

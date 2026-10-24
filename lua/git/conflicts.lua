@@ -84,15 +84,30 @@ function M.get_conflict_commits(git_root)
   end
 end
 
+local CONFLICT_START = [[^<<<<<<< ]]
+local CONFLICT_BASE = [[^||||||| ]]
+local CONFLICT_SEP = [[^=======$]]
+local CONFLICT_END = [[^>>>>>>> ]]
+
+-- full parsing of the conflicts will enable spc-co and stuff AND the gutter indicators
 local function refresh_conflicts(bufnr, path, conflicts_state, refresh)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local indices = {}
+  local conflicts = {}
+  local conflict_info = {}
   for i, item in ipairs(lines) do
-    if vim.startswith(item, "<<<<<<<") then
-      table.insert(indices, i)
+    if item:match(CONFLICT_START) then
+      conflict_info.start_lnum = i
+    elseif item:match(CONFLICT_BASE) then
+      conflict_info.base_lnum = i
+    elseif item:match(CONFLICT_SEP) then
+      conflict_info.sep_lnum = i
+    elseif item:match(CONFLICT_END) then
+      conflict_info.end_lnum = i
+      table.insert(conflicts, conflict_info)
+      conflict_info = {}
     end
   end
-  conflicts_state.conflicts[path] = indices
+  conflicts_state.conflicts[path] = conflicts
   refresh()
 end
 
@@ -113,7 +128,7 @@ function M.register_watchers(conflicts_section, refresh)
         refresh_conflicts(buf, path, conflicts_state, refresh)
 
         -- register a buffer write watcher to update the conflicts count and refresh the sidebar
-        vim.api.nvim_create_autocmd("BufWritePost", {
+        vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged" }, {
           group = augroup,
           buffer = args.data.buf,
           callback = function(args)

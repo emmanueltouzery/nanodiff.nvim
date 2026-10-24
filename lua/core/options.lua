@@ -60,6 +60,9 @@ function M.get_status_options()
       conflict_previous = "[x",
       conflict_next = "]x",
       mark_file_for_diff = "+",
+      conflict_choose_ours = "<leader>co",
+      conflict_choose_theirs = "<leader>ct",
+      conflict_choose_all = "<leader>ca",
     },
     conflicts_display_mode = "ours_local_theirs", -- also supported: ours_local_theirs_base
   })
