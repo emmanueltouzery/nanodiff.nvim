@@ -6,6 +6,8 @@ local M = {}
 
 local augroup = vim.api.nvim_create_augroup("ConflictListeners", { clear = true })
 
+local gutter_ns_id = vim.api.nvim_create_namespace("nanodiff_gutter_signs")
+
 -- when rebasing HEAD is the upstream target branch you are rebasing onto,
 -- while the commit being replayed from your feature branch is stage 3 ("theirs").
 
@@ -136,6 +138,17 @@ local function refresh_conflicts(bufnr, path, conflicts_state, refresh)
     end
   end
   conflicts_state.conflicts[path] = conflicts
+
+  vim.api.nvim_buf_clear_namespace(bufnr, gutter_ns_id, 0, -1)
+  for _, conflict in ipairs(conflicts) do
+    for lnum = conflict.start_lnum-1, conflict.end_lnum-1 do
+      vim.api.nvim_buf_set_extmark(bufnr, gutter_ns_id, lnum, 0, {
+        sign_text = "▎",
+        sign_hl_group = "DiagnosticError",
+      })
+    end
+  end
+
   refresh()
 end
 
