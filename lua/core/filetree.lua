@@ -262,7 +262,7 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
   local selection_line = nil
   if expanded then
     selection_line = render_tree(ft, ft_st, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
-    if #ft_st.lines >= 1 then
+    if #items >= 1 then
       -- close the left border for the last line in the section
       ft_st.lines[#ft_st.lines][1][1] = "└"
     end
@@ -321,7 +321,9 @@ function M.set_contents(ft, ft_st, data, selected_item)
     local fst_non_empty_idx, _ = vim.iter(ipairs(data)):find(
       function(_, s) return #ft.section_get_items(s) > 0 end
     )
-    ft_st.tree_expand_st[ft.section_get_key(data[fst_non_empty_idx])] = {section_expanded = true}
+    if fst_non_empty_idx ~= nil then
+      ft_st.tree_expand_st[ft.section_get_key(data[fst_non_empty_idx])] = {section_expanded = true}
+    end
   end
 
   for _, section in ipairs(data) do
