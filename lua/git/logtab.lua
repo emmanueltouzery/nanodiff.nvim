@@ -9,7 +9,7 @@ local async = vim.async
 
 local M = {}
 
-local function format_commit_summary(commit, has_selection)
+local function format_commit_summary(commit, has_selection, expanded)
   local file_count = #commit.files
   local total_added = 0
   local total_deleted = 0
@@ -48,9 +48,14 @@ local function format_commit_summary(commit, has_selection)
   local deleted_str = tostring(total_deleted)
   local deleted_pad = string.rep(" ", math.max(0, 5 - #deleted_str))
 
+  local arrow = " "
+  if expanded then
+    arrow = " "
+  end
+
   -- %-10s -> Left-aligned string (10 chars wide)
   return {
-    {commit_status .. " ", commit_status_hl},
+    {arrow .. " " .. commit_status .. " ", commit_status_hl},
     {string.format("%-9s", files_str), "DiffviewFilePanelCounter"},
     {" | ", "DiffviewNonText"},
     {added_pad, nil},

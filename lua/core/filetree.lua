@@ -152,6 +152,7 @@ local function render_tree(ft, ft_st, selected_path, section_expand_st, tree, de
         folder = folder_open
       end
       table.insert(ft_st.lines, {
+        {"│", "DiffviewNonText"},
         {" " .. prefix, nil},
         {arrow, "DiffviewNonText"},
         {folder, "DiffviewFolderSign"},
@@ -238,10 +239,6 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
   local items = ft.section_get_items(section_obj)
   if #items == 0 and not section_obj.always_show then return nil end
 
-  local header = ft.render_section(section_obj, selected_path)
-  ft_st.line_to_item[#ft_st.lines+1] = {type = "section", header = header, section_obj = section_obj}
-  table.insert(ft_st.lines, header)
-
   local tree = ft_st.tree_by_section[section_key]
 
   local expand_set = section_expand_st ~= nil and section_expand_st.section_expanded or nil
@@ -257,9 +254,18 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
     -- not selected, no user request, expand as per default
     expanded = ft.expand_default
   end
+
+  local header = ft.render_section(section_obj, selected_path, expanded)
+  ft_st.line_to_item[#ft_st.lines+1] = {type = "section", header = header, section_obj = section_obj}
+  table.insert(ft_st.lines, header)
+
   local selection_line = nil
   if expanded then
     selection_line = render_tree(ft, ft_st, selected_path, section_expand_st or {}, tree, 1, "", expand_selected)
+    if #ft_st.lines >= 1 then
+      -- close the left border for the last line in the section
+      ft_st.lines[#ft_st.lines][1][1] = "└"
+    end
   end
   return selection_line
 end

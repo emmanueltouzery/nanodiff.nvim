@@ -146,8 +146,8 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
   if item.status == "U" then
     -- git conflict: don't display the +- diffstat, rather the number of conflicts
     line_info = {
-      {item.status, status_hl},
-      {string.format("%s ", prefix), nil},
+      {string.format("%s  ", prefix), nil},
+      {item.status .. " ", status_hl},
       {icon .. " ", icon_hl_group},
       {item.path .. " ", path_hl},
       {conflicts_state.conflicts[extra.item_full_path] ~= nil
@@ -157,8 +157,9 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     }
   elseif item.orig_path then
     line_info = {
-      {item.status, status_hl},
-      {string.format("%s ", prefix), nil},
+      {"│", "DiffviewNonText"},
+      {string.format("%s  ", prefix), nil},
+      {item.status .. " ", status_hl},
       {icon .. " ", icon_hl_group},
       {item.orig_path, nil},
       {" -> ", nil},
@@ -175,8 +176,9 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     end
   else
     line_info = {
-      {item.status, status_hl},
-      {string.format("%s ", prefix), nil},
+      {"│", "DiffviewNonText"},
+      {string.format("%s  ", prefix), nil},
+      {item.status .. " ", status_hl},
       {icon .. " ", icon_hl_group},
       {item.path .. diffstat_prefix, path_hl},
     }
