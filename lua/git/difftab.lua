@@ -8,6 +8,7 @@ local io_helpers = require('core.io_helpers')
 local tabcommon = require('git.tabcommon')
 local conflicts = require('git.conflicts')
 local index_watcher = require('git.index_watcher')
+local actions = require('git.actions')
 
 local M = {}
 
@@ -283,6 +284,10 @@ end
 
 local function open_conflict_commits(tab_data, opts)
   local section, item = filetree.get_cur_section_item(tab_data.ft_st)
+  if section.base_sha == nil then
+    vim.notify("No conflict", vim.log.levels.WARN, {source = "nanodiff"})
+    return
+  end
   async.run(function()
     local fmt = "--format=commit %H (%m)%nAuthor: %an <%ae>%nDate:   %ad%n%n%w(0,4,4)%B"
 
@@ -376,7 +381,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
           -- may have changed
           for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
             local b = vim.api.nvim_win_get_buf(w)
-            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanodiff://:") then
+            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanodiff://") then
               -- if we delete the buffer, that would close the window
               -- because buffers a "hidden=wipe", that'll clean it
               difflayout.win_load_null_file(w)
@@ -473,83 +478,19 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
 
   if opts.shortcuts.stage_unstage then
     vim.keymap.set('n', opts.shortcuts.stage_unstage, function()
-      -- will stage the item under the cursor
-      local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-      if section == nil then
-        -- no item under the cursor
-        return
-      end
-      local path = item.path
-      -- TODO if conflicted file, allow staging if the number of conflicts is zero...
-      local command = nil
-      if section.right_sha == "disk" then
-        -- unstaged, stage it
-        command = {"git", "add", path}
-      else
-        -- staged, unstage it
-        command = {"git", "restore", "--staged", path}
-      end
-      async.run(function()
-        io_helpers.run_cmd(command, {cwd = git_root})
-      end):raise_on_error()
+      actions.stage_unstage()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.drop_changes then
     vim.keymap.set('n', opts.shortcuts.drop_changes, function()
-      -- will drop changes from the item under the cursor
-      local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-      if section == nil then
-        -- no item under the cursor
-        return
-      end
-      local diff2_win = tabdata.get_data().diff2_win
-      if vim.bo[vim.api.nvim_win_get_buf(diff2_win)].modified then
-        vim.notify("Refusing to restore a file with unsaved changes!", vim.log.levels.WARN, {source = "nanodiff"})
-        return
-      end
-
-      -- first switch to the next file as this file will disappear
-      filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-      async.run(function()
-        local hash = io_helpers.run_cmd({"git", "hash-object", "-w", "--", item.path}, {cwd = git_root})
-        io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
-        vim.schedule(function()
-          vim.notify(
-            string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11)),
-            vim.log.levels.INFO, {source = "nanodiff"}
-          )
-        end)
-      end):raise_on_error()
+      actions.drop_changes()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.mark_file_for_diff then
     vim.keymap.set('n', opts.shortcuts.mark_file_for_diff, function()
-      local tab_data = tabdata.get_data()
-      local section, item = filetree.get_cur_section_item(tab_data.ft_st)
-      if item then
-        if tab_data.marked then
-          tabcommon.win_load_buf(
-            git_root, tab_data.diff1_win, tab_data.marked.item.path, 
-            tab_data.marked.item.left_sha or tab_data.marked.section.left_sha,
-            tab_data.marked.section.left_winbar
-          )
-          tabcommon.win_load_buf(
-            git_root, tab_data.diff2_win, item.path,
-            item.right_sha or section.right_sha, section.right_winbar
-          )
-          -- did the "wait_for_windows_ready" thing here, but often
-          -- the first diff window is already the right one, so it doesn't
-          -- need to get loaded. i think it's not needed for two windows anyway.
-          difflayout.win_set_diff(tab_data.diff1_win)
-          difflayout.win_set_diff(tab_data.diff2_win)
-          tab_data.marked = nil
-        else
-          tab_data.marked = { section = section, item = item }
-        end
-        filetree.redisplay(tab_data.ft, tab_data.ft_st, false)
-      end
+      actions.mark_file_for_diff()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 

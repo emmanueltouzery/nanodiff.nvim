@@ -2,8 +2,11 @@ local io_helpers = require('core.io_helpers')
 local difftab = require('git.difftab')
 local log = require('git.log')
 local conflicts = require('git.conflicts')
+local actions = require('git.actions')
 
-local M = {}
+local M = {
+  actions = actions,
+}
 
 function M.get_repo_root()
   return vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}))

@@ -66,4 +66,8 @@ function M.stashes(opts)
   end)
 end
 
+function M.get_adapter(cb, opts)
+  with_vsc(opts or {}, cb)
+end
+
 return M

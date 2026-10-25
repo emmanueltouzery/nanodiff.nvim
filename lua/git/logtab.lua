@@ -4,6 +4,7 @@ local log_filter = require('core.log_filter')
 local io_helpers = require('core.io_helpers')
 local difflayout = require('core.difflayout')
 local tabcommon = require('git.tabcommon')
+local actions = require('git.actions')
 local async = vim.async
 
 local M = {}
@@ -72,7 +73,7 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
   end)
 end
 
-local function get_header(log)
+local function get_header()
   local tab_data = tabdata.get_data()
   local first_row = { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} }
   for k, v in pairs(tab_data.search_settings or {}) do
@@ -84,7 +85,7 @@ local function get_header(log)
   else
     table.insert(title_row, {tab_data.title .. " ", "DiffviewFilePanelTitle"})
   end
-  table.insert(title_row, {string.format("(%d)", #log), "DiffviewFilePanelCounter"})
+  table.insert(title_row, {string.format("(%d)", tab_data.log_count), "DiffviewFilePanelCounter"})
   return {
     first_row,
     {},
@@ -98,6 +99,12 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   local bottom_win = vim.api.nvim_get_current_win()
 
   local tab_data = tabdata.get_data()
+  tab_data.log_count = #log
+  tab_data.reload_log = function() -- API, can be used by external callers and actions
+    local log = cmd_fn()
+    tab_data.log_count = #log
+    return log
+  end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.bottom_win = bottom_win
   tab_data.title = title
@@ -105,7 +112,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   tab_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.hash end,
     section_get_items = function(s) return s.files end,
-    get_header = function() return get_header(log) end,
+    get_header = get_header,
     render_item = tabcommon.tree_render_item,
     render_section = format_commit_summary,
     item_activated = function(ft, ft_st, section, item, skip_refresh_bottom_buf)
@@ -202,39 +209,13 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   if opts.shortcuts.unstash then
     vim.keymap.set('n', opts.shortcuts.unstash, function()
-      async.run(function()
-        local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-        if section == nil then
-          -- no item under the cursor
-          return
-        end
-        io_helpers.run_cmd({"git", "stash", "pop", section.ref_log}, {cwd = git_root})
-        vim.schedule(function() vim.cmd.tabclose() end)
-      end):raise_on_error()
+      actions.unstash()
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
 
   if opts.shortcuts.drop_stash then
     vim.keymap.set('n', opts.shortcuts.drop_stash, function()
-      async.run(function()
-        local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-        if section == nil then
-          -- no item under the cursor
-          return
-        end
-        io_helpers.run_cmd({"git", "stash", "drop", section.ref_log}, {cwd = git_root})
-        local git_log = cmd_fn(git_root)
-        if git_log == nil then
-          -- will be nil if there are no more stashes
-          vim.cmd.tabclose()
-        else
-          vim.schedule(function()
-            local tab_data = tabdata.get_data()
-            tab_data.ft_st.selected_item = nil -- reset selected_item
-            filetree.set_contents(tab_data.ft, tab_data.ft_st, git_log)
-          end)
-        end
-      end):raise_on_error()
+      actions.drop_stash()
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
 end

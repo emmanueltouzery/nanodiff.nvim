@@ -37,6 +37,7 @@ function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
       jump_to_first = "F",
+      mark_file_for_diff = "+",
     },
     panel_width = 40,
   })
@@ -59,7 +60,6 @@ function M.get_status_options()
       conflict_modal_switch_commit = "<TAB>",
       conflict_previous = "[x",
       conflict_next = "]x",
-      mark_file_for_diff = "+",
       conflict_choose_ours = "<leader>co",
       conflict_choose_theirs = "<leader>ct",
       conflict_choose_all = "<leader>ca",
