@@ -363,6 +363,9 @@ function M.get_cur_section_item(ft_st)
 end
 
 function M.next_file(ft, ft_st)
+  if #ft_st.sorted_files == 1 then
+    return -- prevents a glitch: single file, press tab to go to next file, we lose diff mode
+  end
   local next = false
   for i, file in ipairs(ft_st.sorted_files) do
     if next then
@@ -384,6 +387,9 @@ function M.next_file(ft, ft_st)
 end
 
 function M.prev_file(ft, ft_st)
+  if #ft_st.sorted_files == 1 then
+    return -- prevents a glitch: single file, press tab to go to next file, we lose diff mode
+  end
   local prev = false
   for i = #ft_st.sorted_files, 1, -1 do
     local file = ft_st.sorted_files[i]
