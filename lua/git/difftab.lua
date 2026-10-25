@@ -32,6 +32,7 @@ local function jump_match(matches, dir)
   end
 
   vim.api.nvim_win_set_cursor(0, { matches[idx], 0 })
+  vim.cmd("norm! zz")
   print(string.format("conflict [%d/%d]", idx, #matches))
 end
 
@@ -145,7 +146,9 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
         vim.api.nvim_buf_set_lines(mid_buf, conflict.end_lnum - 1, conflict.end_lnum, true, {})
         vim.api.nvim_buf_set_lines(mid_buf, conflict.sep_lnum - 1, conflict.sep_lnum, true, {})
         if conflict.base_lnum then
-          vim.api.nvim_buf_set_lines(mid_buf, conflict.base_lnum - 1, conflict.base_lnum, true, {})
+          -- decided that "all" shouldn't include the base revision (unlike diffview)
+          -- vim.api.nvim_buf_set_lines(mid_buf, conflict.base_lnum - 1, conflict.base_lnum, true, {})
+          vim.api.nvim_buf_set_lines(mid_buf, conflict.base_lnum - 1, conflict.sep_lnum - 1, true, {})
         end
         vim.api.nvim_buf_set_lines(mid_buf, conflict.start_lnum - 1, conflict.start_lnum, true, {})
       end
