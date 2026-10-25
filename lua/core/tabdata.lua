@@ -17,14 +17,14 @@ function M.add_cleanup(cleanup_fn)
   table.insert(state[tabnr].__cleanups, cleanup_fn)
 end
 
-vim.api.nvim_create_autocmd("TabClosed", {
+vim.api.nvim_create_autocmd("TabClosedPre", {
   group = vim.api.nvim_create_augroup("MyPluginStateCleanup", { clear = true }),
   callback = function(args)
-    local closing_tabnumber = tonumber(vim.fn.expand("<afile>"))
-    for _, cleanup_fn in ipairs((state[closing_tabnumber] or {}).__cleanups or {}) do
+    local closing_tab_id = vim.api.nvim_get_current_tabpage()
+    for _, cleanup_fn in ipairs((state[closing_tab_id] or {}).__cleanups or {}) do
       cleanup_fn()
     end
-    state[closing_tabnumber] = nil
+    state[closing_tab_id] = nil
   end,
 })
 
