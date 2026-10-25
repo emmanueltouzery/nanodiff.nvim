@@ -1,6 +1,6 @@
 local M = {}
 
--- local folder_closed = "",
+local folder_closed = " "
 local folder_open = " "
 local ns_hl_id = vim.api.nvim_create_namespace("nanodiff_ui_highlights")
 
@@ -142,14 +142,21 @@ local function render_tree(ft, ft_st, selected_path, section_expand_st, tree, de
     if item.is_dir then
       local full_path = path_append(full_path, item.path)
       ft_st.line_to_item[#ft_st.lines+1] = {type = "dir", path = full_path}
-      -- 3 spaces for the prefix where files have the status [M] and so on
-      table.insert(ft_st.lines, {
-        {"   " .. prefix, nil},
-        {folder_open, "DiffviewFolderSign"},
-        {item.path, "DiffviewFolderName"},
-      })
       local expand_set = section_expand_st.folder_expanded and section_expand_st.folder_expanded[full_path]
       local expand = expand_set ~= false or expand_selected
+      -- 3 spaces for the prefix where files have the status [M] and so on
+      local arrow = " "
+      local folder = folder_closed
+      if expand then
+        arrow = " "
+        folder = folder_open
+      end
+      table.insert(ft_st.lines, {
+        {" " .. prefix, nil},
+        {arrow, "DiffviewNonText"},
+        {folder, "DiffviewFolderSign"},
+        {item.path, "DiffviewFolderName"},
+      })
       if expand then
         local sl, sp = render_tree(ft, ft_st, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)
         if sl and selection_line == nil then

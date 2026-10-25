@@ -13,13 +13,23 @@ local function format_commit_summary(commit, has_selection)
   local file_count = #commit.files
   local total_added = 0
   local total_deleted = 0
+  local commit_status = "M"
+  local commit_status_hl = nil
+  if vim.iter(commit.files):all(function(c) return c.status == "A" end) then
+    commit_status = "A"
+    commit_status_hl = "DiffviewStatusAdded"
+  end
+  if vim.iter(commit.files):all(function(c) return c.status == "D" end) then
+    commit_status = "D"
+    commit_status_hl = "DiffviewStatusDeleted"
+  end
 
   for _, file in ipairs(commit.files) do
     total_added = total_added + (tonumber(file.added) or 0)
     total_deleted = total_deleted + (tonumber(file.deleted) or 0)
   end
 
-  local files_str = string.format("M %d %s", file_count, file_count == 1 and "file" or "files")
+  local files_str = string.format("%d %s", file_count, file_count == 1 and "file" or "files")
 
   local refs_str = ""
   -- for git stash, prefer ref_log (%gd -> "stash@{0}") over ref_names (%D -> "refs/stash")
@@ -40,7 +50,8 @@ local function format_commit_summary(commit, has_selection)
 
   -- %-10s -> Left-aligned string (10 chars wide)
   return {
-    {string.format("%-10s", files_str), "DiffviewFilePanelCounter"},
+    {commit_status .. " ", commit_status_hl},
+    {string.format("%-9s", files_str), "DiffviewFilePanelCounter"},
     {" | ", "DiffviewNonText"},
     {added_pad, nil},
     {added_str, "DiffviewFilePanelInsertions"},
