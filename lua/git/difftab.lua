@@ -348,6 +348,19 @@ local function reload_diff(git_root, reload_index)
 end
 
 function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, watch_index, opts)
+  local filename = vim.fs.relpath(git_root, vim.api.nvim_buf_get_name(0))
+  local selected_item = nil
+  for _, section in ipairs(sections) do
+    for _, item in ipairs(section.contents) do
+      if item.path == filename then
+        selected_item = {
+          section = section,
+          item = item,
+        }
+        break
+      end
+    end
+  end
   vim.cmd("tabnew")
 
   local left_buf = vim.api.nvim_win_get_buf(0)
@@ -397,6 +410,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
   tab_data.ft_st = filetree.create_ft_st({
     bufnr = left_buf,
     winnr = left_win,
+    selected_item = selected_item,
   })
 
   local has_conflicts = false

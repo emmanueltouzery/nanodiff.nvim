@@ -225,7 +225,7 @@ function M.create_ft_st(params)
 
     -- user-applied state
     tree_expand_st = {},
-    selected_item = nil, -- subfields section+path
+    selected_item = params.selected_item, -- subfields section+path
 
     -- depends on node expansion state
     lines = {},
