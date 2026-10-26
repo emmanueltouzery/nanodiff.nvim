@@ -163,10 +163,24 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   if opts.shortcuts.yank_commit then
     vim.keymap.set('n', opts.shortcuts.yank_commit, function()
       local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-      local hash = section.hash
-      vim.fn.setreg("+", hash)
-      vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
+      if section then
+        local hash = section.hash
+        vim.fn.setreg("+", hash)
+        vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
+      end
     end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
+
+  if opts.shortcuts.open_log then
+    vim.keymap.set(
+      'n', opts.shortcuts.open_log, function()
+        local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
+        if section then
+          actions.revspec_display_commits_popup(git_root, section.hash .. "^!")
+        end
+      end,
+      { noremap = true, silent = true, buffer = left_buf }
+    )
   end
 
   if opts.shortcuts.filters then

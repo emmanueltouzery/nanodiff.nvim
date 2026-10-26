@@ -18,6 +18,7 @@ function M.get_log_options()
     shortcuts = {
       filters = "g!",
       yank_commit = "y",
+      open_log = "L",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
     panel_height = 15,

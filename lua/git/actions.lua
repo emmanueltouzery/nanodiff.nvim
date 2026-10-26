@@ -141,4 +141,83 @@ function M.mark_file_for_diff()
   end
 end
 
+--- Converts a git diff revspec into an equivalent git log commit range string.
+-- @param revspec string The input revspec (e.g., "master", "master...", "A..B", "A...B")
+-- @return string The converted range suitable for git log (e.g., "merge_base..B")
+local function async_diff_to_log_revspec(revspec)
+  if revspec == "" then
+    return "HEAD"
+  end
+  if vim.endswith(revspec, "^!") then
+    -- C^! means the commit C, excluding its parents
+    return revspec
+  end
+
+  -- 1. Check for triple-dot range: "A...B" or "A..."
+  local a_triple, b_triple = revspec:match("^([^.]*)%.%.%.([^.]*)$")
+  if a_triple then
+    local ref_a = a_triple ~= "" and a_triple or "HEAD"
+    local ref_b = b_triple ~= "" and b_triple or "HEAD"
+
+    local merge_base = vim.trim(io_helpers.run_cmd({"git", "merge-base", ref_a, ref_b}, {cwd = git_root}))
+    if merge_base then
+      return string.format("%s..%s", merge_base, ref_b)
+    else
+      -- Fallback if merge-base fails (e.g., unrelated histories)
+      return string.format("%s..%s", ref_a, ref_b)
+    end
+  end
+
+  -- 2. Check for double-dot range: "A..B" or "A.."
+  local a_double, b_double = revspec:match("^([^.]*)%.%.([^.]*)$")
+  if a_double then
+    local ref_a = a_double ~= "" and a_double or "HEAD"
+    local ref_b = b_double ~= "" and b_double or "HEAD"
+    return string.format("%s..%s", ref_a, ref_b)
+  end
+
+  -- 3. Single rev spec: "master" -> compares commit 'master' to current HEAD
+  return string.format("%s..HEAD", revspec)
+end
+
+function M.revspec_display_commits_popup(git_root, revspec)
+  io_helpers.async_progress("Loading git revspec log", function()
+    local log_revspec = async_diff_to_log_revspec(revspec)
+    local git_commits = io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", log_revspec}, {cwd = git_root})
+    vim.schedule(function()
+      local git_commits_lines = vim.split(git_commits, "[\r\n]")
+
+      local bufnr = vim.api.nvim_create_buf(false, false)
+      vim.bo[bufnr].filetype = "git"
+      vim.bo[bufnr].bufhidden = "wipe"
+      vim.bo[bufnr].buftype = "nofile"
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
+      vim.bo[bufnr].readonly = true
+      vim.bo[bufnr].modified = false
+      vim.bo[bufnr].modifiable = false
+      local width = vim.api.nvim_get_option("columns")
+      local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
+      local win_height = math.min(#git_commits_lines, 50)
+      if win_height > height then
+        win_height = height
+      end
+
+      local opts = {
+        style = "minimal",
+        border = "rounded",
+        relative = "editor",
+        row = (height - win_height) / 2,
+        col = (width - 100) / 2,
+        width = 100,
+        height = win_height,
+      }
+      local w = vim.api.nvim_open_win(bufnr, true, opts)
+      -- Adds a 1-character left margin inside the buffer area
+      vim.wo[w].foldcolumn = "1"
+      vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
+    end)
+  end)
+end
+
+
 return M
