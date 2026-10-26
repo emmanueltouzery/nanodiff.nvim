@@ -155,6 +155,7 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
   if item.status == "U" then
     -- git conflict: don't display the +- diffstat, rather the number of conflicts
     line_info = {
+      {"│", "DiffviewNonText"},
       {string.format("%s  ", prefix), nil},
       {item.status .. " ", status_hl},
       {icon .. " ", icon_hl_group},
