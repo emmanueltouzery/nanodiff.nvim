@@ -106,7 +106,8 @@ local function get_diff_status(git_root, opts)
       -- Untracked files: "? <path>"
       local path = line:match("^%?%s+(.+)$")
       if path then
-        table.insert(changes, { path = path, status = "?", added = nil, deleted = nil, left_sha = "nil" })
+        local added = vim.async.await(io_helpers.count_file_lines(vim.fs.joinpath(git_root, path)))
+        table.insert(changes, { path = path, status = "?", added = added, deleted = 0, left_sha = "nil" })
       end
     end
   end
