@@ -18,6 +18,10 @@ function M.stage_unstage()
     -- no item under the cursor
     return
   end
+  -- switch to the next file, if we did follow the file as it moves to the
+  -- staged/unstaged section, it would be very annoying to stage multiple
+  -- files one after the other when doing a review
+  filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
   local path = item.path
   -- TODO if conflicted file, allow staging if the number of conflicts is zero...
   local command = nil
