@@ -135,7 +135,12 @@ end
 
 function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat, extra_icon)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
-  local status_hl = item.left_sha == "nil" and "DiffviewFilePanelInsertions" or nil -- untracked files
+  local status_hl = nil
+  if item.status == "A" then
+    status_hl = "DiffviewFilePanelInsertions"
+  elseif item.status == "D" then
+    status_hl = "DiffviewFilePanelDeletions"
+  end
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
   local diffstat_prefix = " "
   local diffstat_hl_suffix = ""
