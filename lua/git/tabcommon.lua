@@ -7,11 +7,12 @@ local M = {}
 
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
 
-local function win_load_sha_file(winnr, git_root, path, sha, winbar)
+local function win_load_sha_file(winnr, git_root, path, sha, winbar, on_loaded)
   local bufname = string.format("nanodiff://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr ~= -1 then
     vim.api.nvim_win_set_buf(winnr, bufnr)
+    if on_loaded then on_loaded() end
   else
     -- create the buffer immediately to prevent races
     local bufnr = vim.api.nvim_create_buf(true, false) -- listed, not scratch
@@ -45,6 +46,8 @@ local function win_load_sha_file(winnr, git_root, path, sha, winbar)
             vim.wo[winnr].winbar = winbar
           end
         end
+        -- even on failure, so we don't block the barrier
+        if on_loaded then on_loaded() end
       end)
     end):raise_on_error()
   end
@@ -78,12 +81,13 @@ local function blob_size(git_root, path, rev)
   end
 end
 
-function M.win_load_buf(git_root, winnr, path, sha, winbar)
+-- on_loaded (optional) is called once the buffer is displayed in the window
+function M.win_load_buf(git_root, winnr, path, sha, winbar, on_loaded)
   vim.api.nvim_set_option_value('diff', false, { win = winnr, scope = 'local' })
   vim.api.nvim_set_option_value('scrollbind', false, { win = winnr, scope = 'local' })
 
   if sha == "nil" then
-    difflayout.win_load_null_file(winnr)
+    difflayout.win_load_null_file(winnr, on_loaded)
     -- if we don't force the line number to zero, neovim
     -- might reposition the file at the last-remembered line number
     -- for that file
@@ -102,7 +106,7 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar)
       end
       vim.schedule(function()
         if not is_display then
-          difflayout.win_load_null_file(winnr)
+          difflayout.win_load_null_file(winnr, on_loaded)
           if winbar ~= nil then
             vim.wo[winnr].winbar = winbar
           end
@@ -115,14 +119,14 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar)
               path = vim.fs.joinpath(git_root, path)
             end
             vim.schedule(function()
-              difflayout.win_load_disk_file(winnr, path)
+              difflayout.win_load_disk_file(winnr, path, on_loaded)
               if winbar ~= nil then
                 vim.wo[winnr].winbar = winbar
               end
             end)
           end):raise_on_error()
         else
-          win_load_sha_file(winnr, git_root, path, sha, winbar)
+          win_load_sha_file(winnr, git_root, path, sha, winbar, on_loaded)
         end
         -- if we don't force the line number to zero, neovim
         -- might reposition the file at the last-remembered line number

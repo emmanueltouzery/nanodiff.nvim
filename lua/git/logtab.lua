@@ -75,15 +75,18 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, commit, item)
   tab_data.selected_item = {section = commit.hash, path = item.path}
-  tabcommon.win_load_buf(git_root, tab_data.diff1_win, item.path, item.left_sha or commit.hash .. "^")
-  tabcommon.win_load_buf(git_root, tab_data.diff2_win, item.path, item.right_sha or commit.hash)
+  local barrier = difflayout.windows_ready_barrier(tab_data)
+  tabcommon.win_load_buf(
+    git_root, tab_data.diff1_win, item.path, item.left_sha or commit.hash .. "^",
+    nil, barrier.add(tab_data.diff1_win))
+  tabcommon.win_load_buf(
+    git_root, tab_data.diff2_win, item.path, item.right_sha or commit.hash,
+    nil, barrier.add(tab_data.diff2_win))
   if not skip_refresh_bottom_buf then
     filetree.redisplay(tab_data.ft, tab_data.ft_st, true)
   end
-  -- activate diff mode only when all windows are ready
-  local relevant_windows = {tab_data.diff1_win, tab_data.diff2_win}
-  difflayout.wait_for_windows_ready(relevant_windows, function()
-    for _, winnr in ipairs(relevant_windows) do
+  barrier.wait(function(all_windows)
+    for _, winnr in ipairs(all_windows) do
       difflayout.win_set_diff(winnr)
     end
   end)

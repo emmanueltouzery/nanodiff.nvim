@@ -14,7 +14,7 @@ function M.win_set_diff(winnr)
   vim.api.nvim_set_option_value('foldenable', true, { win = winnr, scope = 'local' })
 end
 
-function M.win_load_null_file(winnr)
+function M.win_load_null_file(winnr, on_loaded)
   local bufname = "nanodiff://null"
   local bufnr = vim.fn.bufnr(bufname)
   if bufnr == -1 then
@@ -24,9 +24,10 @@ function M.win_load_null_file(winnr)
     vim.bo[bufnr].buftype = "nofile"
   end
   vim.api.nvim_win_set_buf(winnr, bufnr)
+  if on_loaded then on_loaded() end
 end
 
-function M.win_load_disk_file(winnr, path)
+function M.win_load_disk_file(winnr, path, on_loaded)
   local bufnr = vim.fn.bufadd(path) -- will reuse existing matching buffers
   if not vim.api.nvim_buf_is_loaded(bufnr) then
     -- we know it's our buffer since it's not loaded.
@@ -40,6 +41,7 @@ function M.win_load_disk_file(winnr, path)
     pattern = "NanodiffDiskBufferLoaded",
     data = { path = path, buf = bufnr },
   })
+  if on_loaded then on_loaded() end
 end
 
 -- diff layout is one window at the bottom, then the diffed windows on top
@@ -181,35 +183,44 @@ end
 --
 -- This went away when I started enabling diff mode only after
 -- the window configuration/window buffer mapping was stable.
--- => watch for the windows to "stabilize" and when they do,
--- I'll be able to activate diff mode.
-function M.wait_for_windows_ready(target_wins, on_all_ready)
-  local pending = {}
-  for _, win_id in ipairs(target_wins) do
-    pending[win_id] = true
+-- => every window load registers itself with `add()` and calls the
+-- returned callback once its buffer is in place. `wait()` runs its
+-- callback when all the registered loads are done.
+-- Starting a new barrier for a tab invalidates the previous one, so that
+-- if the user moves quickly between files, a stale load doesn't trigger.
+function M.windows_ready_barrier(tab_data)
+  tab_data.load_generation = (tab_data.load_generation or 0) + 1
+  local generation = tab_data.load_generation
+  local pending = 0
+  local all_windows = {}
+  local on_all_ready = nil
+
+  local function check()
+    if pending == 0 and on_all_ready and tab_data.load_generation == generation then
+      local cb = on_all_ready
+      on_all_ready = nil
+      cb(all_windows)
+    end
   end
 
-  local remaining = #target_wins
-
-  local group_name = "NanodiffBarrier_" .. math.random(100000)
-  local augroup = vim.api.nvim_create_augroup(group_name, { clear = true })
-
-  vim.api.nvim_create_autocmd("BufWinEnter", {
-    group = augroup,
-    callback = function()
-      local current_win = vim.api.nvim_get_current_win()
-
-      if pending[current_win] then
-        pending[current_win] = nil
-        remaining = remaining - 1
-
-        if remaining == 0 then
-          vim.api.nvim_del_augroup_by_id(augroup)
-          on_all_ready()
+  return {
+    add = function(winnr)
+      pending = pending + 1
+      table.insert(all_windows, winnr)
+      local done = false
+      return function()
+        if not done then
+          done = true
+          pending = pending - 1
+          check()
         end
       end
     end,
-  })
+    wait = function(cb)
+      on_all_ready = cb
+      check()
+    end,
+  }
 end
 
 return M

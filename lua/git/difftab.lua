@@ -39,23 +39,22 @@ end
 local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_buf, opts)
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, section, item)
+  local barrier = difflayout.windows_ready_barrier(tab_data)
   difflayout.diff_tab_layout_load_buf(tab_data, section, item, opts, function(win, path, rev, winbar)
-    tabcommon.win_load_buf(git_root, win, path, rev, winbar)
+    tabcommon.win_load_buf(git_root, win, path, rev, winbar, barrier.add(win))
   end)
-  tabcommon.win_load_buf(git_root, tab_data.diff1_win, item.path, item.left_sha or section.left_sha, section.left_winbar)
-  tabcommon.win_load_buf(git_root, tab_data.diff2_win, item.path, item.right_sha or section.right_sha, section.right_winbar)
+  tabcommon.win_load_buf(
+    git_root, tab_data.diff1_win, item.path, item.left_sha or section.left_sha,
+    section.left_winbar, barrier.add(tab_data.diff1_win))
+  tabcommon.win_load_buf(
+    git_root, tab_data.diff2_win, item.path, item.right_sha or section.right_sha,
+    section.right_winbar, barrier.add(tab_data.diff2_win))
   if not skip_refresh_left_buf then
     filetree.redisplay(tab_data.ft, tab_data.ft_st, true)
   end
+
   -- activate diff mode only when all windows are ready
-  local relevant_windows = {tab_data.diff1_win, tab_data.diff2_win}
-  if section.base_sha then
-    table.insert(relevant_windows, tab_data.diff4_win)
-  end
-  if section.mid_sha then
-    table.insert(relevant_windows, tab_data.diff3_win)
-  end
-  difflayout.wait_for_windows_ready(relevant_windows, function()
+  barrier.wait(function(all_windows)
     if section.mid_sha then
       local mid_buf = vim.api.nvim_win_get_buf(tab_data.diff3_win)
       if opts.shortcuts.conflict_previous then
@@ -172,9 +171,8 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           end
         end, { noremap = true, silent = true, buffer = mid_buf })
       end
-
     end
-    for _, winnr in ipairs(relevant_windows) do
+    for _, winnr in ipairs(all_windows) do
       difflayout.win_set_diff(winnr)
     end
   end)

@@ -117,29 +117,23 @@ function M.mark_file_for_diff()
   local section, item = filetree.get_cur_section_item(tab_data.ft_st)
   if item then
     if tab_data.marked then
-      -- force both windows to nil so that the "wait_for_windows_ready" trick
-      -- works. Otherwise if the window is already loaded nothing happens
-      difflayout.win_load_null_file(tab_data.diff1_win)
-      difflayout.win_load_null_file(tab_data.diff2_win)
-      -- schedule so the "load null file" is executed
-      vim.schedule(function()
-        tabcommon.win_load_buf(
-          tab_data.git_root, tab_data.diff1_win, tab_data.marked.item.path, 
-          tab_data.marked.item.left_sha or tab_data.marked.section.left_sha,
-          tab_data.marked.section.left_winbar
-        )
-        tabcommon.win_load_buf(
-          tab_data.git_root, tab_data.diff2_win, item.path,
-          item.right_sha or section.right_sha, section.right_winbar
-        )
-        local relevant_windows = {tab_data.diff1_win, tab_data.diff2_win}
-        difflayout.wait_for_windows_ready(relevant_windows, function()
-          for _, winnr in ipairs(relevant_windows) do
-            difflayout.win_set_diff(winnr)
-          end
-        end)
-        tab_data.marked = nil
+      local barrier = difflayout.windows_ready_barrier(tab_data)
+      tabcommon.win_load_buf(
+        tab_data.git_root, tab_data.diff1_win, tab_data.marked.item.path,
+        tab_data.marked.item.left_sha or tab_data.marked.section.left_sha,
+        tab_data.marked.section.left_winbar, barrier.add(tab_data.diff1_win)
+      )
+      tabcommon.win_load_buf(
+        tab_data.git_root, tab_data.diff2_win, item.path,
+        item.right_sha or section.right_sha,
+        section.right_winbar, barrier.add(tab_data.diff2_win)
+      )
+      barrier.wait(function(all_windows)
+        for _, winnr in ipairs(all_windows) do
+          difflayout.win_set_diff(winnr)
+        end
       end)
+      tab_data.marked = nil
     else
       tab_data.marked = { section = section, item = item }
     end
