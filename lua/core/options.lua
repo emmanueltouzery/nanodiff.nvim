@@ -4,7 +4,7 @@ function M.get_common_options()
   return {
     shortcuts = {
       close_tab = "q",
-      activate = "<CR>",
+      activate = { "<CR>", "<2-LeftMouse>" },
       scroll_backward = "<C-b>",
       scroll_forward = "<C-f>",
       prev_file = "<S-TAB>",
