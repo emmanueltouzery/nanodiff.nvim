@@ -55,7 +55,18 @@ function M.drop_changes()
   local git_root = tabdata.get_data().git_root
   return async.run(function()
     local hash = io_helpers.run_cmd({"git", "hash-object", "-w", "--", item.path}, {cwd = git_root})
-    io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
+
+    if item.left_sha == "nil" then
+      -- untracked file, delete it
+      io_helpers.async_fs_unlink(vim.fs.joinpath(git_root, item.path))
+      -- since we didn't touch the index, we must force a reload
+      vim.schedule(function()
+        tabdata.get_data().reload_diff(tabdata.get_data().git_root)
+      end)
+    else
+      -- tracked file, git restore
+      io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
+    end
     vim.schedule(function()
       vim.notify(
         string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11)),

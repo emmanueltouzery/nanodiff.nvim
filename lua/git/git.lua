@@ -147,7 +147,7 @@ function M.status(opts)
       if vim.iter(status):all(function(item) return #item.contents == 0 end) then
         vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
       else
-        difftab.open_diff_tab(status, "Branch", branch, git_root, get_diff_status, opts)
+        difftab.open_diff_tab(status, "Branch", branch, git_root, get_diff_status, true, opts)
       end
     end)
   end)
@@ -298,7 +298,10 @@ function M.revspec(revspec, opts)
       if vim.iter(contents):all(function(item) return #item.contents == 0 end) then
       vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
     else
-      local left_buf = difftab.open_diff_tab(contents, "Revspec", revspec, git_root, nil, opts)
+      local left_buf = difftab.open_diff_tab(contents, "Revspec", revspec, git_root, function(git_root)
+        local revspec, contents = get_diff_revspec(git_root, revspec)
+        return contents
+      end, false, opts)
 
       if opts.shortcuts.open_log then
         vim.keymap.set(

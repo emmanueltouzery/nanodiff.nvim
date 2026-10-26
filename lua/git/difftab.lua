@@ -316,11 +316,47 @@ local function open_conflict_commits(tab_data, opts)
   end):raise_on_error()
 end
 
-function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, opts)
+local function reload_diff(git_root, reload_index)
+  local tab_data = tabdata.get_data()
+  async.run(function()
+    local sel = tab_data.ft_st.selected_item
+    local sections = reload_index(git_root, opts)
+    vim.schedule(function()
+      -- i must clear all stage-related managed buffers, because what's staged/stashed and so on
+      -- may have changed
+      for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        local b = vim.api.nvim_win_get_buf(w)
+        if vim.startswith(vim.api.nvim_buf_get_name(b), "nanodiff://") then
+          -- if we delete the buffer, that would close the window
+          -- because buffers a "hidden=wipe", that'll clean it
+          difflayout.win_load_null_file(w)
+        end
+      end
+
+      -- an item may have changed section, if it was staged or unstaged for instance
+      -- try to find it back
+      local item_section_after = vim.iter(sections):find(function(s)
+        return vim.iter(tab_data.ft.section_get_items(s)):find(function(i) return i.path == sel.item.path end)
+      end)
+      if item_section_after then
+        sel.section = item_section_after
+      else
+        sel = nil
+      end
+      filetree.set_contents(tab_data.ft, tab_data.ft_st, sections)
+      filetree.handle_enter(tab_data.ft, tab_data.ft_st)
+    end)
+  end):raise_on_error()
+end
+
+function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, watch_index, opts)
   vim.cmd("tabnew")
 
   local left_buf = vim.api.nvim_win_get_buf(0)
   local tab_data = tabdata.get_data()
+  tab_data.reload_diff = function(git_root) -- API, can be used by external callers and actions
+    reload_diff(git_root, reload_index)
+  end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
 
   local left_win = vim.api.nvim_get_current_win()
@@ -374,37 +410,11 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, o
     end)
   end
 
-  if reload_index then
+  if watch_index then
     index_watcher.setup_index_watch(git_root, left_buf, function()
-      async.run(function()
-        local sel = tab_data.ft_st.selected_item
-        local sections = reload_index(git_root, opts)
-        vim.schedule(function()
-          -- i must clear all stage-related managed buffers, because what's staged/stashed and so on
-          -- may have changed
-          for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-            local b = vim.api.nvim_win_get_buf(w)
-            if vim.startswith(vim.api.nvim_buf_get_name(b), "nanodiff://") then
-              -- if we delete the buffer, that would close the window
-              -- because buffers a "hidden=wipe", that'll clean it
-              difflayout.win_load_null_file(w)
-            end
-          end
-
-          -- an item may have changed section, if it was staged or unstaged for instance
-          -- try to find it back
-          local final_section = vim.iter(sections):find(function(s)
-            return vim.iter(tab_data.ft.section_get_items(s)):find(function(i) return i.path == sel.item.path end)
-          end)
-          if final_section then
-            sel.section = final_section
-          else
-            sel = nil
-          end
-          filetree.set_contents(tab_data.ft, tab_data.ft_st, sections)
-          filetree.handle_enter(tab_data.ft, tab_data.ft_st)
-        end)
-      end):raise_on_error()
+      vim.schedule(function()
+        reload_diff(git_root, reload_index)
+      end)
     end)
   end
 

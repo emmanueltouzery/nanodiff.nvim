@@ -2,6 +2,7 @@ local M = {}
 
 local async = vim.async
 M.async_sys = async.wrap(3, vim.system)
+M.async_fs_unlink = async.wrap(2, vim.uv.fs_unlink)
 
 function M.run_cmd(cmd, opts)
   local res = M.async_sys(cmd, opts)
