@@ -140,7 +140,7 @@ end
 function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat, extra_icon)
   local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
   local status_hl = nil
-  if item.status == "A" then
+  if item.status == "A" or item.status == "?" then
     status_hl = "DiffviewFilePanelInsertions"
   elseif item.status == "D" then
     status_hl = "DiffviewFilePanelDeletions"
@@ -157,7 +157,8 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     line_info = {
       {"│", "DiffviewNonText"},
       {string.format("%s  ", prefix), nil},
-      {item.status .. " ", status_hl},
+      {item.status, status_hl},
+      {" ", nil},
       {icon .. " ", icon_hl_group},
       {item.path .. " ", path_hl},
       {conflicts_state.conflicts[extra.item_full_path] ~= nil
@@ -169,7 +170,8 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     line_info = {
       {"│", "DiffviewNonText"},
       {string.format("%s  ", prefix), nil},
-      {item.status .. " ", status_hl},
+      {item.status, status_hl},
+      {" ", nil},
       {icon .. " ", icon_hl_group},
       {item.orig_path, nil},
       {" -> ", nil},
@@ -188,7 +190,8 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     line_info = {
       {"│", "DiffviewNonText"},
       {string.format("%s  ", prefix), nil},
-      {item.status .. " ", status_hl},
+      {item.status, status_hl},
+      {" ", nil},
       {icon .. " ", icon_hl_group},
       {item.path .. diffstat_prefix, path_hl},
     }
