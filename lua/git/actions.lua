@@ -128,11 +128,7 @@ function M.mark_file_for_diff()
         item.right_sha or section.right_sha,
         section.right_winbar, barrier.add(tab_data.diff2_win)
       )
-      barrier.wait(function(all_windows)
-        for _, winnr in ipairs(all_windows) do
-          difflayout.win_set_diff(winnr)
-        end
-      end)
+      barrier.wait(tabcommon.windows_set_diff_if_needed)
       tab_data.marked = nil
     else
       tab_data.marked = { section = section, item = item }

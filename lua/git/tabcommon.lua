@@ -2,6 +2,7 @@ local async = vim.async
 local io_helpers = require("core.io_helpers")
 local devicons = require("nvim-web-devicons")
 local difflayout = require("core.difflayout")
+local tabdata = require("core.tabdata")
 
 local M = {}
 
@@ -206,6 +207,48 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
     end
   end
   return line_info
+end
+
+local function window_contains_nil_buffer(w)
+  local buf = vim.api.nvim_win_get_buf(w)
+  return vim.api.nvim_buf_get_name(buf) == "nanodiff://null"
+end
+
+local function windows_prefer_non_null_buffer(window_list)
+  return vim.iter(window_list):find(function(w) return not window_contains_nil_buffer(w) end) or window_list[1]
+end
+
+function M.add_fwd_bwd_scroll(panel_buf, window_list, opts)
+  local tab_data = tabdata.get_data()
+  if opts.shortcuts.scroll_backward then
+    vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
+      -- scrolling is a nop on an empty buffer, apply to the non-empty buffer if there's one
+      local w = windows_prefer_non_null_buffer(window_list)
+      vim.api.nvim_win_call(w, function()
+        vim.cmd("normal! " .. vim.keycode("<C-b>"))
+      end)
+    end, { noremap = true, silent = true, buffer = panel_buf })
+  end
+
+  if opts.shortcuts.scroll_forward then
+    vim.keymap.set('n', opts.shortcuts.scroll_forward, function()
+      -- scrolling is a nop on an empty buffer, apply to the non-empty buffer if there's one
+      local w = windows_prefer_non_null_buffer(window_list)
+      vim.api.nvim_win_call(w, function()
+        vim.cmd("normal! " .. vim.keycode("<C-f>"))
+      end)
+    end, { noremap = true, silent = true, buffer = panel_buf })
+  end
+end
+
+function M.windows_set_diff_if_needed(window_list)
+  -- if there are two windows and one is the null buffer, diff mode is counter-productive:
+  -- the non-empty buffer will be entirely tinted green and harder to read
+  if #window_list > 2 or not vim.iter(window_list):any(window_contains_nil_buffer) then
+    for _, winnr in ipairs(window_list) do
+      difflayout.win_set_diff(winnr)
+    end
+  end
 end
 
 return M

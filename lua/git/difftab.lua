@@ -172,9 +172,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
         end, { noremap = true, silent = true, buffer = mid_buf })
       end
     end
-    for _, winnr in ipairs(all_windows) do
-      difflayout.win_set_diff(winnr)
-    end
+    tabcommon.windows_set_diff_if_needed(all_windows)
   end)
 end
 
@@ -460,21 +458,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 
-  if opts.shortcuts.scroll_backward then
-    vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
-      vim.api.nvim_win_call(tabdata.get_data().diff1_win, function()
-        vim.cmd("normal! " .. vim.keycode("<C-b>"))
-      end)
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
-
-  if opts.shortcuts.scroll_forward then
-    vim.keymap.set('n', opts.shortcuts.scroll_forward, function()
-      vim.api.nvim_win_call(tabdata.get_data().diff1_win, function()
-        vim.cmd("normal! " .. vim.keycode("<C-f>"))
-      end)
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
+  tabcommon.add_fwd_bwd_scroll(left_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
 
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()

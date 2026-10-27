@@ -85,11 +85,7 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
   if not skip_refresh_bottom_buf then
     filetree.redisplay(tab_data.ft, tab_data.ft_st, true)
   end
-  barrier.wait(function(all_windows)
-    for _, winnr in ipairs(all_windows) do
-      difflayout.win_set_diff(winnr)
-    end
-  end)
+  barrier.wait(tabcommon.windows_set_diff_if_needed)
 end
 
 local function get_header()
@@ -212,21 +208,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
     )
   end
 
-  if opts.shortcuts.scroll_backward then
-    vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
-      vim.api.nvim_win_call(tabdata.get_data().diff1_win, function()
-        vim.cmd("normal! " .. vim.keycode("<C-b>"))
-      end)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
-  end
-
-  if opts.shortcuts.scroll_forward then
-    vim.keymap.set('n', opts.shortcuts.scroll_forward, function()
-      vim.api.nvim_win_call(tabdata.get_data().diff1_win, function()
-        vim.cmd("normal! " .. vim.keycode("<C-f>"))
-      end)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
-  end
+  tabcommon.add_fwd_bwd_scroll(bottom_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
 
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
