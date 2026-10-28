@@ -39,6 +39,12 @@ local fs_close = async.wrap(2, uv.fs_close)
 
 function M.count_file_lines(path)
   return async.run(function()
+    local lstat = vim.uv.fs_lstat(path)
+    if lstat.type ~= "file" then
+      -- could be a symlink, a folder...
+      return nil
+    end
+
     local err, fd = fs_open(path, "r", 0)
     assert(not err, err)
 
