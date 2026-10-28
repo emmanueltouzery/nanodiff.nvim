@@ -1,6 +1,7 @@
 local io_helpers = require('core.io_helpers')
 local difftab = require('git.difftab')
 local log = require('git.log')
+local logtab = require('git.logtab')
 local conflicts = require('git.conflicts')
 local actions = require('git.actions')
 
@@ -256,31 +257,38 @@ function M.log(opts)
     return title
   end
 
-  log.display_log_cmd(log_view_title, function(git_root, extra_params)
+  io_helpers.async_progress("Loading git log", function()
+    local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
     end
-    local cmd = vim.iter({
-      { "git", "-P",
-      "-c", "gc.auto=0",
-      "-c", "core.quotePath=false",
-      "log",
-      "-n256",
-    }, (extra_params or {}), {
-      "--diff-merges=first-parent",
-      "--numstat", "--raw",
-      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-    }}):flatten():totable()
-    if single_file_path then
-      table.insert(cmd, "--follow")
+    local function get_iterator_fn(extra_params)
+      local cmd = vim.iter({
+        { "git", "-P",
+        "-c", "gc.auto=0",
+        "-c", "core.quotePath=false",
+        "log",
+        "-n256",
+      }, (extra_params or {}), {
+        "--diff-merges=first-parent",
+        "--numstat", "--raw",
+        "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+      }}):flatten():totable()
+      if single_file_path then
+        table.insert(cmd, "--follow")
+      end
+      vim.list_extend(cmd, { "--", single_file_path or git_root })
+      return log.parse_git_log_output(cmd, { cwd = git_root }, opts)
     end
-    vim.list_extend(cmd, { "--", single_file_path or git_root })
-    return log.parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
+    vim.schedule(function()
+      logtab.open_log_tab(log_view_title(git_root), get_iterator_fn, git_root, opts)
+    end)
   end, opts)
 end
 
 function M.stashes(opts)
-  log.display_log_cmd(function(git_root) return "Stashes" end, function(git_root, extra_params)
+  io_helpers.async_progress("Loading git stashes", function()
+    local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {cwd = git_root}))
     -- if there are no stashes, the following calls don't react well, check first
     if io_helpers.async_sys({"git", "rev-parse", "--verify", "--quiet", "refs/stash"}).code ~= 0 then
       vim.schedule(function()
@@ -288,20 +296,25 @@ function M.stashes(opts)
       end)
       return
     end
-    local cmd = vim.iter({
-      { "git", "-P",
-      "-c", "gc.auto=0",
-      "-c", "core.quotePath=false",
-      "log",
-      "-n256",
-    }, (extra_params or {}), {
-      "-g", -- --walk-reflogs: iterate through the stash stack
-      "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)
-      "--numstat", "--raw",
-      "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-      "refs/stash"
-    }}):flatten():totable()
-    return log.parse_git_log_output(io_helpers.run_cmd(cmd, { text = true, cwd = git_root }), opts)
+    local function get_iterator_fn(extra_params)
+      local cmd = vim.iter({
+        { "git", "-P",
+        "-c", "gc.auto=0",
+        "-c", "core.quotePath=false",
+        "log",
+        "-n256",
+      }, (extra_params or {}), {
+        "-g", -- --walk-reflogs: iterate through the stash stack
+        "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)
+        "--numstat", "--raw",
+        "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+        "refs/stash"
+      }}):flatten():totable()
+      return log.parse_git_log_output(cmd, { cwd = git_root }, opts)
+    end
+    vim.schedule(function()
+      logtab.open_log_tab("Stashes", get_iterator_fn, git_root, opts)
+    end)
   end, opts)
 end
 

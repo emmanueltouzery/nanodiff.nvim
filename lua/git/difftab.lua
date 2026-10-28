@@ -392,7 +392,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
     render_section = format_section_header,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
       load_entry(
-        ft, ft_st, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, 
+        ft, ft_st, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, 
         skip_refresh_left_buf, opts
       )
     end,

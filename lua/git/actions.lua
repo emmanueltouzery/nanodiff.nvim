@@ -98,17 +98,16 @@ function M.drop_stash()
       return
     end
     io_helpers.run_cmd({"git", "stash", "drop", section.ref_log}, {cwd = tab_data.git_root})
-    local git_log = tab_data.reload_log(tab_data.git_root)
-    if git_log == nil then
-      -- will be nil if there are no more stashes
-      vim.cmd.tabclose()
-    else
-      vim.schedule(function()
-        local tab_data = tabdata.get_data()
-        tab_data.ft_st.selected_item = nil -- reset selected_item
-        filetree.set_contents(tab_data.ft, tab_data.ft_st, git_log)
+    vim.schedule(function()
+      local tab_data = tabdata.get_data()
+      tab_data.ft_st.selected_item = nil -- reset selected_item
+      tab_data.reload_log(function(log)
+        if #log == 0 then
+          -- no more stashes
+          vim.cmd.tabclose()
+        end
       end)
-    end
+    end)
   end):raise_on_error()
 end
 

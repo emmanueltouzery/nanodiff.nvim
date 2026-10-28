@@ -88,8 +88,8 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
   barrier.wait(tabcommon.windows_set_diff_if_needed)
 end
 
-local function get_header()
-  local tab_data = tabdata.get_data()
+local function get_header(tabnr)
+  local tab_data = tabdata.get_data(tabnr)
   local first_row = { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} }
   for k, v in pairs(tab_data.search_settings or {}) do
     table.insert(first_row, { " " .. v, "DiffviewSecondary" })
@@ -108,17 +108,53 @@ local function get_header()
   }
 end
 
-function M.open_log_tab(title, log, git_root, cmd_fn, opts)
+local function refresh_from_iterator(log_iterator, on_done)
+  local is_first_render = true
+  local tab_data = tabdata.get_data()
+  local log = {}
+
+  local task = async.run(function()
+    for commits in log_iterator do
+      vim.list_extend(log, commits)
+      tab_data.log_count = #log
+      vim.schedule(function()
+        filetree.set_contents(tab_data.ft, tab_data.ft_st, log, {
+          focus_selected = is_first_render,
+          expand_first_section = is_first_render,
+        })
+        is_first_render = false
+      end)
+      -- async.sleep(0)
+    end
+    if #log == 0 then
+      -- empty log: the loop rendered nothing, still clear the previous contents
+      tab_data.log_count = 0
+      vim.schedule(function()
+        filetree.set_contents(tab_data.ft, tab_data.ft_st, log)
+      end)
+    end
+    if on_done then
+      vim.schedule(function() on_done(log) end)
+    end
+  end):raise_on_error()
+
+  tabdata.add_cleanup(function()
+    pcall(function()
+      task:close()
+    end)
+  end)
+end
+
+function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   vim.cmd("tabnew")
+  local tabnr = vim.api.nvim_get_current_tabpage()
   local bottom_buf = vim.api.nvim_win_get_buf(0)
   local bottom_win = vim.api.nvim_get_current_win()
 
   local tab_data = tabdata.get_data()
-  tab_data.log_count = #log
-  tab_data.reload_log = function() -- API, can be used by external callers and actions
-    local log = cmd_fn()
-    tab_data.log_count = #log
-    return log
+  -- API, can be used by external callers and actions. on_done(log) is called once the log is fully loaded
+  tab_data.reload_log = function(on_done)
+    refresh_from_iterator(get_iterator_fn(), on_done)
   end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.bottom_win = bottom_win
@@ -127,11 +163,12 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
   tab_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.hash end,
     section_get_items = function(s) return s.files end,
-    get_header = get_header,
+    -- hardcode the tabpage, because we're async and the user may switch the page while we're loading
+    get_header = function() return get_header(tabnr) end,
     render_item = tabcommon.tree_render_item,
     render_section = format_commit_summary,
     item_activated = function(ft, ft_st, section, item, skip_refresh_bottom_buf)
-      load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_hash = "nil", right_hash = "nil"}, skip_refresh_bottom_buf)
+      load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, skip_refresh_bottom_buf)
     end,
     expand_default = false,
   })
@@ -142,7 +179,7 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
 
   difflayout.setup_log_tab_layout(bottom_buf, opts)
 
-  filetree.set_contents(tab_data.ft, tab_data.ft_st, log)
+  refresh_from_iterator(get_iterator_fn())
 
   vim.api.nvim_set_current_win(bottom_win)
 
@@ -190,11 +227,11 @@ function M.open_log_tab(title, log, git_root, cmd_fn, opts)
       }
       log_filter.open_filtering_modal(log_filter_options, function()
         io_helpers.async_progress("Refreshing log", function()
-          local git_log = cmd_fn(git_root, vim.tbl_values(tab_data.search_settings))
+          local iterator = get_iterator_fn(vim.tbl_values(tab_data.search_settings))
           vim.schedule(function()
             local tab_data = tabdata.get_data()
             tab_data.ft_st.selected_item = nil -- reset selected_item
-            filetree.set_contents(tab_data.ft, tab_data.ft_st, git_log)
+            refresh_from_iterator(iterator)
           end)
         end)
       end)

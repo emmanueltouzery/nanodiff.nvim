@@ -3,8 +3,8 @@
 local M = {}
 local state = {} -- Map of tabnr -> Lua table
 
-function M.get_data()
-  local tabnr = vim.api.nvim_get_current_tabpage()
+function M.get_data(tabnr)
+  local tabnr = tabnr or vim.api.nvim_get_current_tabpage()
   if not state[tabnr] then
     state[tabnr] = {}
   end

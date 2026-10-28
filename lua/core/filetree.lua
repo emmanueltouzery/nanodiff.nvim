@@ -308,7 +308,12 @@ function M.redisplay(ft, ft_st, focus_selected)
   end
 end
 
-function M.set_contents(ft, ft_st, data, selected_item)
+function M.set_contents(ft, ft_st, data, opts)
+  opts = opts or {}
+  local selected_item = opts.selected_item
+  local focus_selected = opts.focus_selected
+  local expand_first_section = opts.expand_first_section
+
   ft_st.sections = data
   ft_st.tree_by_section = {}
   ft_st.sorted_files = {}
@@ -316,7 +321,7 @@ function M.set_contents(ft, ft_st, data, selected_item)
     ft_st.selected_item = selected_item
   end
 
-  if #data > 0 then
+  if expand_first_section ~= false and #data > 0 then
     -- expand the first non-empty section
     local fst_non_empty_idx, _ = vim.iter(ipairs(data)):find(
       function(_, s) return #ft.section_get_items(s) > 0 end
@@ -342,16 +347,20 @@ function M.set_contents(ft, ft_st, data, selected_item)
       ft_st.selected_item = ft_st.sorted_files[1]
     end
   end
-  M.redisplay(ft, ft_st, true)
-  -- display the first entry immediately
-  if #data > 0 then
-    ft.item_activated(ft, ft_st, ft_st.selected_item.section, ft_st.selected_item.item, true)
-    -- Force the top of the buffer (line 1) to be visible at the top of the window
-    vim.fn.winrestview({ topline = 1 })
-  else
-    -- no data, display nil buffers
-    ft.item_activated(ft, ft_st, nil, nil)
-    vim.api.nvim_win_set_cursor(bottom_win, { 1, 0 })
+  M.redisplay(ft, ft_st, focus_selected ~= false)
+  if focus_selected ~= false then
+    -- display the first entry immediately
+    if #data > 0 then
+      ft.item_activated(ft, ft_st, ft_st.selected_item.section, ft_st.selected_item.item, true)
+      -- Force the top of the buffer (line 1) to be visible at the top of the window
+      vim.fn.winrestview({ topline = 1 })
+    else
+      -- no data, display nil buffers
+      ft.item_activated(ft, ft_st, nil, nil)
+      -- item_activated may have stored its placeholder, but there is nothing to select
+      ft_st.selected_item = nil
+      vim.api.nvim_win_set_cursor(ft_st.winnr, { 1, 0 })
+    end
   end
 end
 
