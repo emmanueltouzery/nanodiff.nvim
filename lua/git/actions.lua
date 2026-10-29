@@ -64,8 +64,8 @@ function M.drop_changes()
         tabdata.get_data().reload_diff(tabdata.get_data().git_root)
       end)
     else
-      -- tracked file, git restore
-      io_helpers.run_cmd({"git", "restore", item.path}, {cwd = git_root})
+      -- tracked file, staged or not
+      io_helpers.run_cmd({"git", "restore", "--source=HEAD", "--staged", "--worktree", "--", item.path})
     end
     vim.schedule(function()
       vim.notify(
