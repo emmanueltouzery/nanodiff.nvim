@@ -183,7 +183,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
 
   vim.api.nvim_set_current_win(bottom_win)
 
-  vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log")
+  vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log-" .. vim.api.nvim_get_current_tabpage())
 
   vim.bo[bottom_buf].filetype = "NanodiffLogPanel"
 

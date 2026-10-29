@@ -434,7 +434,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
 
   filetree.set_contents(tab_data.ft, tab_data.ft_st, sections)
 
-  vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff")
+  vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff-" .. vim.api.nvim_get_current_tabpage())
 
   vim.bo[left_buf].filetype = "NanodiffDiffPanel"
 
