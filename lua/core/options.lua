@@ -22,6 +22,7 @@ function M.get_log_options()
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
     panel_height = 15,
+    default_max_items = 256,
   })
 end
 

@@ -262,13 +262,13 @@ function M.log(opts)
     if single_file_path then
       single_file_path = vim.fs.relpath(git_root, single_file_path)
     end
-    local function get_iterator_fn(extra_params)
+    local function get_iterator_fn(tab_data)
+      local extra_params = vim.tbl_values(tab_data.search_settings)
       local cmd = vim.iter({
         { "git", "-P",
         "-c", "gc.auto=0",
         "-c", "core.quotePath=false",
         "log",
-        "-n256",
       }, (extra_params or {}), {
         "--diff-merges=first-parent",
         "--numstat", "--raw",
@@ -296,13 +296,13 @@ function M.stashes(opts)
       end)
       return
     end
-    local function get_iterator_fn(extra_params)
+    local function get_iterator_fn(tab_data)
+      local extra_params = vim.tbl_values(tab_data.search_settings)
       local cmd = vim.iter({
         { "git", "-P",
         "-c", "gc.auto=0",
         "-c", "core.quotePath=false",
         "log",
-        "-n256",
       }, (extra_params or {}), {
         "-g", -- --walk-reflogs: iterate through the stash stack
         "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)

@@ -29,9 +29,6 @@ end
 
 function M.open_filtering_modal(options, refresh_bottom_buf)
   local tab_data = tabdata.get_data()
-  if tab_data.search_settings == nil then
-    tab_data.search_settings = {}
-  end
   local bufnr = vim.api.nvim_create_buf(false, false)
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].buftype = "nofile"

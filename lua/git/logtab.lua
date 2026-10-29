@@ -152,9 +152,10 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   local bottom_win = vim.api.nvim_get_current_win()
 
   local tab_data = tabdata.get_data()
+  tab_data.search_settings = { ["=n"] = "--max-count=" .. opts.default_max_items }
   -- API, can be used by external callers and actions. on_done(log) is called once the log is fully loaded
   tab_data.reload_log = function(on_done)
-    refresh_from_iterator(get_iterator_fn(), on_done)
+    refresh_from_iterator(get_iterator_fn(tab_data), on_done)
   end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.bottom_win = bottom_win
@@ -179,7 +180,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
 
   difflayout.setup_log_tab_layout(bottom_buf, opts)
 
-  refresh_from_iterator(get_iterator_fn())
+  refresh_from_iterator(get_iterator_fn(tab_data))
 
   vim.api.nvim_set_current_win(bottom_win)
 
@@ -224,10 +225,11 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
         { "=G", "Search changes", "-G" },
         { "=B", "Before date", "--before=" },
         { "=A", "After date", "--after=" },
+        { "=n", "Limit the number of commits", "--max-count=" },
       }
       log_filter.open_filtering_modal(log_filter_options, function()
         io_helpers.async_progress("Refreshing log", function()
-          local iterator = get_iterator_fn(vim.tbl_values(tab_data.search_settings))
+          local iterator = get_iterator_fn(tab_data)
           vim.schedule(function()
             local tab_data = tabdata.get_data()
             tab_data.ft_st.selected_item = nil -- reset selected_item
