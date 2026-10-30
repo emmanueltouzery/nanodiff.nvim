@@ -346,7 +346,7 @@ local function reload_diff(git_root, reload_index)
 end
 
 function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, watch_index, opts)
-  local filename = vim.fs.relpath(git_root, vim.api.nvim_buf_get_name(0))
+  local filename = vim.fs.relpath(git_root, opts.selected_file or vim.api.nvim_buf_get_name(0))
   local selected_item = nil
   for _, section in ipairs(sections) do
     for _, item in ipairs(section.contents) do
