@@ -5,6 +5,7 @@ local uv = vim.uv
 
 M.async_sys = async.wrap(3, vim.system)
 M.async_fs_unlink = async.wrap(2, uv.fs_unlink)
+M.async_fs_lstat = async.wrap(2, uv.fs_lstat)
 
 function M.run_cmd(cmd, opts)
   local res = M.async_sys(cmd, opts)
@@ -39,7 +40,8 @@ local fs_close = async.wrap(2, uv.fs_close)
 
 function M.count_file_lines(path)
   return async.run(function()
-    local lstat = vim.uv.fs_lstat(path)
+    local err, lstat = M.async_fs_lstat(path)
+    assert(not err, err)
     if lstat.type ~= "file" then
       -- could be a symlink, a folder...
       return nil

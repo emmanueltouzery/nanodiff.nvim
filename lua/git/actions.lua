@@ -37,24 +37,16 @@ function M.stage_unstage()
   end):raise_on_error()
 end
 
-function M.drop_changes()
-  -- will drop changes from the item under the cursor
-  local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
-  if section == nil then
-    -- no item under the cursor
-    return
-  end
-  local diff2_win = tabdata.get_data().diff2_win
-  if vim.bo[vim.api.nvim_win_get_buf(diff2_win)].modified then
-    vim.notify("Refusing to restore a file with unsaved changes!", vim.log.levels.WARN, {source = "nanodiff"})
-    return
-  end
-
+local function do_drop_changes(item, do_hash)
   -- first switch to the next file as this file will disappear
   filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
   local git_root = tabdata.get_data().git_root
   return async.run(function()
-    local hash = io_helpers.run_cmd({"git", "hash-object", "-w", "--", item.path}, {cwd = git_root})
+    local msg = nil
+    if do_hash then
+      local hash = io_helpers.run_cmd({"git", "hash-object", "-w", "--", item.path}, {cwd = git_root})
+      msg = string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11))
+    end
 
     if item.left_sha == "nil" then
       -- untracked file, delete it
@@ -67,13 +59,39 @@ function M.drop_changes()
       -- tracked file, staged or not
       io_helpers.run_cmd({"git", "restore", "--source=HEAD", "--staged", "--worktree", "--", item.path})
     end
-    vim.schedule(function()
-      vim.notify(
-        string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11)),
-        vim.log.levels.INFO, {source = "nanodiff"}
-      )
-    end)
+    if msg ~= nil then
+      vim.schedule(function()
+        vim.notify(msg, vim.log.levels.INFO, {source = "nanodiff"})
+      end)
+    end
   end):raise_on_error()
+end
+
+function M.drop_changes()
+  local tab_data = tabdata.get_data()
+  -- will drop changes from the item under the cursor
+  local section, item = filetree.get_cur_section_item(tab_data.ft_st)
+  if section == nil then
+    -- no item under the cursor
+    return
+  end
+  local full_path = vim.fs.joinpath(tab_data.git_root, item.path)
+  local opened_bufnr = vim.fn.bufnr(full_path)
+  if opened_bufnr ~= -1 and vim.bo[opened_bufnr].modified then
+    vim.notify("Refusing to restore a file with unsaved changes!", vim.log.levels.WARN, {source = "nanodiff"})
+    return
+  end
+
+  local lstat = vim.uv.fs_lstat(full_path)
+  if lstat.type == "directory" then
+    vim.ui.select({"Yes", "No"}, {prompt="Discard changes in the whole git folder " .. item.path .. "?"}, function(choice)
+      if choice == "Yes" then
+        do_drop_changes(item, false)
+      end
+    end)
+  elseif lstat.type == "file" then
+    do_drop_changes(item, true)
+  end
 end
 
 function M.unstash()
