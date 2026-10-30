@@ -13,31 +13,36 @@ function M.get_repo_root()
   return vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}))
 end
 
-local function get_new_path(path)
-  if path:find(" => ") then
-    -- Handle grouped renames like "dir/{old => new}/file.lua"
-    local prefix, new_part, suffix = path:match("^(.-)%{%S*%s*=>%s*(%S*)%}(.*)$")
-    if prefix then
-      return (prefix .. new_part .. suffix):gsub("//+", "/")
-    end
-    -- Handle simple renames like "old.lua => new.lua"
-    return path:match("=>%s*(.+)$")
-  end
-  return path
-end
-
+-- Regular file: added<TAB>deleted<TAB>path<NUL>
+-- Rename/copy: added<TAB>deleted<TAB><TAB>old_path<NUL>new_path<NUL>
 local function parse_diff_numstat(stdout)
   local stats = {}
+  local pos = 1
 
-  for line in stdout:gmatch("[^\r\n]+") do
-    local added, deleted, path = line:match("^([%d%-]+)%s+([%d%-]+)%s+(.+)$")
-    if path then
-      local real_path = get_new_path(path)
-      stats[real_path] = {
-        added = tonumber(added) or 0,
-        deleted = tonumber(deleted) or 0,
-      }
+  while pos <= #stdout do
+    local added, deleted, path
+    added, deleted, path, pos = stdout:match(
+      "^([%d%-]+)\t([%d%-]+)\t([^%z]*)%z()",
+      pos
+    )
+
+    local entry = {
+      added = tonumber(added) or 0, -- binary files are represented by -
+      deleted = tonumber(deleted) or 0,
+    }
+
+    if path == "" then -- rename
+      local old_path, new_path
+      old_path, pos = stdout:match("^([^%z]*)%z()", pos)
+      new_path, pos = stdout:match("^([^%z]*)%z()", pos)
+
+      entry.old_path = old_path
+      entry.new_path = new_path
+    else
+      entry.path = path
     end
+
+    stats[entry.new_path or entry.path] = entry
   end
 
   return stats
@@ -47,7 +52,9 @@ local function get_diff_status(git_root, opts)
   local current_commit = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "HEAD"}, {cwd = git_root}))
 
   -- need to fetch the per-file diffstats separately
-  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({"git", "diff", "HEAD", "--numstat"}))
+  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({
+    "git", "-c", "core.quotepath=false", "diff", "HEAD", "--numstat", "-z"
+  }))
 
   local output = io_helpers.run_cmd({"git", "-c", "core.quotepath=false", "status", "--porcelain=v2", "--untracked-files=all"}, {cwd = git_root})
 
@@ -168,9 +175,13 @@ local function get_diff_revspec(git_root, revspec)
   end
 
   -- need to fetch the per-file diffstats separately
-  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({"git", "diff", "--numstat", revspec}))
+  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({
+    "git", "-c", "core.quotepath=false", "diff", "--numstat", "-z", revspec
+  }))
 
-  local output = vim.trim(io_helpers.run_cmd({"git", "diff", "--name-status", "-M", revspec}, {text = true, cwd = git_root}))
+  local output = vim.trim(io_helpers.run_cmd({
+    "git", "-c", "core.quotepath=false", "diff", "--name-status", "-M", revspec
+  }, {text = true, cwd = git_root}))
 
   local results = {}
 
