@@ -257,7 +257,7 @@ local function add_section_to_lines(ft, ft_st, section_obj, selected_path, secti
 
   local header = ft.render_section(section_obj, selected_path, expanded)
   ft_st.line_to_item[#ft_st.lines+1] = {type = "section", header = header, section_obj = section_obj}
-  table.insert(ft_st.lines, header)
+  vim.list_extend(ft_st.lines, header)
 
   local selection_line = nil
   if expanded then

@@ -105,18 +105,30 @@ function M.diff_tab_layout_load_buf(tab_data, section, item, opts, win_load_buf)
   vim.api.nvim_set_current_win(tab_data.left_win)
 end
 
+function M.set_win_options(win)
+  vim.wo[win].winfixbuf = true -- Lock window to this buffer
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = "no"
+  vim.wo[win].wrap = false
+  vim.wo[win].spell = false
+end
+
+function M.set_buf_options(buf)
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].swapfile = false
+end
+
 function M.diff_tab_layout_init(left_buf, opts)
   local tab_data = tabdata.get_data()
   local left_win = tab_data.left_win
 
-  vim.wo.spell = false
-
-  vim.bo[left_buf].buftype = "nofile"
-  vim.bo[left_buf].bufhidden = "wipe"
-  vim.bo[left_buf].swapfile = false
+  M.set_buf_options(left_buf)
 
   -- Split to create the right window
   vim.cmd("rightbelow vsplit")
+  vim.cmd("wincmd L") -- if we have two vertical panes on the left, move fully to the right
   local diff1_win = vim.api.nvim_get_current_win()
 
   -- Set left window width to 40 characters
@@ -134,12 +146,7 @@ function M.diff_tab_layout_init(left_buf, opts)
   tab_data.diff1_win = diff1_win
   tab_data.diff2_win = diff2_win
 
-  -- Configure left window options (including winfixbuf)
-  vim.wo[left_win].winfixbuf = true -- Lock window to this buffer
-  vim.wo[left_win].number = false
-  vim.wo[left_win].relativenumber = false
-  vim.wo[left_win].signcolumn = "no"
-  vim.wo[left_win].wrap = false
+  M.set_win_options(left_win)
 end
 
 function M.setup_log_tab_layout(bottom_buf, opts)
@@ -168,12 +175,7 @@ function M.setup_log_tab_layout(bottom_buf, opts)
   -- Lock the height against <C-W>= balancing
   vim.wo[bottom_win].winfixheight = true
 
-  -- Configure bottom window options (including winfixbuf)
-  vim.wo[bottom_win].winfixbuf = true -- Lock window to this buffer
-  vim.wo[bottom_win].number = false
-  vim.wo[bottom_win].relativenumber = false
-  vim.wo[bottom_win].signcolumn = "no"
-  vim.wo[bottom_win].wrap = false
+  M.set_win_options(bottom_win)
 end
 
 -- I have seen diff "corruption", the diff being incorrect, if

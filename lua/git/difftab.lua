@@ -9,11 +9,12 @@ local tabcommon = require('git.tabcommon')
 local conflicts = require('git.conflicts')
 local index_watcher = require('git.index_watcher')
 local actions = require('git.actions')
+local logtab = require('git.logtab')
 
 local M = {}
 
 local function format_section_header(section, has_selection)
-  return {{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #section.contents), "DiffviewFilePanelCounter"} }
+  return {{{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #(section.contents)), "DiffviewFilePanelCounter"}}}
 end
 
 local function jump_match(matches, dir)
@@ -288,7 +289,7 @@ local function open_conflict_commits(tab_data, opts)
     return
   end
   async.run(function()
-    local fmt = "--format=commit %H (%m)%nAuthor: %an <%ae>%nDate:   %ad%n%n%w(0,4,4)%B"
+    local fmt = "--format=commit %h (%m)%nAuthor: %an <%ae>%nDate:   %ad%n%n%w(0,4,4)%B"
 
     -- base ↔ ours: > = changes ours added; < = changes ours lacks (reversed relative to base)
     local commits_base_ours = io_helpers.run_cmd(
@@ -345,10 +346,136 @@ local function reload_diff(git_root, reload_index)
   end):raise_on_error()
 end
 
-function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, watch_index, opts)
+local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bottom_buf, opts)
+  tab_data.leftpane_log_ft = filetree.create_ft({
+    section_get_key = function(s) return s.hash end,
+    section_get_items = function(s) return s.files end,
+    get_header = function() return {
+      { {"Commits: ", "DiffviewFilePanelPath"}, {#tab_data.log, "DiffviewFilePanelCounter"} },
+      {},
+    } end,
+    render_item = function(prefix, item, is_selected, extra)
+      return tabcommon.tree_render_item(
+        prefix, item, is_selected, extra, tab_data.conflicts_state,
+        true, -- right_align_diffstat
+        extra_icon
+      )
+    end,
+    render_section = function(section, has_selection)
+      local file_count_str = string.format("󱔗 %d", #(section.files))
+      local max_length = opts.panel_width - #section.hash - #file_count_str - 4
+      local title = section.subject
+      if #title > max_length then
+        title = vim.trim(string.sub(title, 1, max_length)) .. "…"
+      end
+      local title_hl = nil
+      if has_selection then
+        title_hl = "DiffviewFilePanelTitle" 
+      end
+      return {{
+        { " " .. section.hash, "DiffviewHash" }, { " " .. title .. " ", title_hl }, {file_count_str, "DiffviewFilePanelCounter+right_align"},
+      }, {
+        { "¦ ", "DiffviewHash"},
+        { section.author_name, "DiffviewReflogSelector"},
+        { " " .. section.date, "DiffviewDim1"},
+      }}
+    end,
+    item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
+      -- TODO shouldn't set tab_data.selected_item
+      logtab.load_entry(
+        tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, left_bottom_buf,
+        tab_data.git_root, section or {}, item,
+        skip_refresh_left_buf, opts
+      )
+    end,
+    expand_default = false,
+    lines_between_sections = function(prev_section, section)
+        return {}
+    end
+  })
+  tab_data.leftpane_log_ft_st = filetree.create_ft_st({
+    bufnr = left_bottom_buf,
+    winnr = left_bottom_win,
+    selected_item = selected_item,
+  })
+
+  if opts.shortcuts.open_log then
+    vim.keymap.set(
+      'n', opts.shortcuts.open_log, function()
+        local section, item = filetree.get_cur_section_item(tabdata.get_data().leftpane_log_ft_st)
+        if section then
+          actions.display_commit_popup(git_root, section.hash)
+        end
+      end,
+      { noremap = true, silent = true, buffer = left_buf }
+    )
+  end
+
+  if opts.shortcuts.yank_commit then
+    vim.keymap.set('n', opts.shortcuts.yank_commit, function()
+      local section, item = filetree.get_cur_section_item(tabdata.get_data().leftpane_log_ft_st)
+      if section then
+        local hash = section.hash
+        vim.fn.setreg("+", hash)
+        vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
+      end
+    end, { noremap = true, silent = true, buffer = bottom_buf })
+  end
+
+end
+
+local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
+  if opts.shortcuts.close_tab then
+    vim.keymap.set(
+      'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
+      { noremap = true, silent = true, buffer = buf }
+    )
+  end
+
+  if opts.shortcuts.activate then
+    vim.keymap.set('n', opts.shortcuts.activate, function()
+      filetree.handle_enter(ft, ft_st)
+    end, { noremap = true, silent = true, buffer = buf })
+  end
+
+  tabcommon.add_fwd_bwd_scroll(buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
+
+  if opts.shortcuts.prev_file then
+    vim.keymap.set('n', opts.shortcuts.prev_file, function()
+      filetree.prev_file(ft, ft_st)
+    end, { noremap = true, silent = true, buffer = buf })
+  end
+
+  if opts.shortcuts.next_file then
+    vim.keymap.set('n', opts.shortcuts.next_file, function()
+      filetree.next_file(ft, ft_st)
+    end, { noremap = true, silent = true, buffer = buf })
+  end
+
+  if opts.shortcuts.jump_to_first then
+    vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
+      local ft_st = ft_st
+      for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
+        if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
+          vim.api.nvim_win_set_cursor(0, {i, 0})
+          filetree.handle_enter( ft, ft_st)
+          return
+        end
+      end
+    end, { noremap = true, silent = true, buffer = buf })
+  end
+
+  if opts.shortcuts.mark_file_for_diff then
+    vim.keymap.set('n', opts.shortcuts.mark_file_for_diff, function()
+      actions.mark_file_for_diff()
+    end, { noremap = true, silent = true, buffer = buf })
+  end
+end
+
+function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, git_root, reload_index, watch_index, opts)
   local filename = vim.fs.relpath(git_root, opts.selected_file or vim.api.nvim_buf_get_name(0))
   local selected_item = nil
-  for _, section in ipairs(sections) do
+  for _, section in ipairs(diff_sections) do
     for _, item in ipairs(section.contents) do
       if item.path == filename then
         selected_item = {
@@ -363,6 +490,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
 
   local left_buf = vim.api.nvim_win_get_buf(0)
   local tab_data = tabdata.get_data()
+  tab_data.diff_sections = diff_sections
   tab_data.reload_diff = function(git_root) -- API, can be used by external callers and actions
     reload_diff(git_root, reload_index)
   end
@@ -398,7 +526,8 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
     end,
     expand_default = true,
     lines_between_sections = function(prev_section, section)
-      if prev_section ~= nil and (#prev_section.contents > 0 or prev_section.always_show) then
+      local items = prev_section ~= nil and (prev_section.contents or prev_section.files)
+      if prev_section ~= nil and (#items > 0 or prev_section.always_show) then
         return {""}
       else 
         return {}
@@ -412,10 +541,10 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
   })
 
   local has_conflicts = false
-  if sections[1].title == "Conflicts" then
+  if diff_sections[1].title == "Conflicts" then
     has_conflicts = true
     tab_data.conflicts_state = {conflicts = {}}
-    conflicts.register_watchers(sections[1], function()
+    conflicts.register_watchers(diff_sections[1], function()
       filetree.redisplay(tab_data.ft, tab_data.ft_st, false)
     end)
   end
@@ -428,22 +557,50 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
     end)
   end
 
+  if iterator_section ~= nil then
+    local iterator_height = math.floor((vim.o.lines - vim.o.cmdheight - vim.o.laststatus - vim.o.showtabline) * (1 - opts.diff_log_panel_height_ratio))
+    tab_data.left_bottom_win = vim.api.nvim_open_win(0, true, {
+      split = "below",
+      height = iterator_height,
+      win = 0,
+    })
+    tab_data.left_bottom_buf = vim.api.nvim_create_buf(true, false) -- listed, not scratch
+    difflayout.set_buf_options(tab_data.left_bottom_buf)
+    vim.api.nvim_win_set_buf(tab_data.left_bottom_win, tab_data.left_bottom_buf)
+    difflayout.set_win_options(tab_data.left_bottom_win)
+    -- Lock the height against <C-W>= balancing
+    vim.wo[tab_data.left_bottom_win].winfixheight = true
+
+    vim.api.nvim_set_current_win(tab_data.left_win)
+
+    -- vim.wo[tab_data.left_bottom_win].winbar = "Commits"
+    prepare_leftpane_log_filetree(tab_data, tab_data.left_bottom_win, tab_data.left_bottom_buf, opts)
+
+    add_standard_filetree_shortcuts(
+      tab_data, tab_data.left_bottom_buf, tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, opts)
+
+    tabcommon.refresh_from_iterator(
+      iterator_section.iterator,
+      function() end, -- on_done
+      function(log)
+        tab_data.log = log
+        filetree.set_contents(tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, log, {
+          focus_selected = false,
+          expand_first_section = false,
+        })
+      end
+    )
+  end
+
   difflayout.diff_tab_layout_init(left_buf, opts)
 
   vim.api.nvim_set_current_win(left_win)
 
-  filetree.set_contents(tab_data.ft, tab_data.ft_st, sections)
+  filetree.set_contents(tab_data.ft, tab_data.ft_st, diff_sections)
 
   vim.api.nvim_buf_set_name(left_buf, "Nanodiff Diff-" .. vim.api.nvim_get_current_tabpage())
 
   vim.bo[left_buf].filetype = "NanodiffDiffPanel"
-
-  if opts.shortcuts.close_tab then
-    vim.keymap.set(
-      'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
-      { noremap = true, silent = true, buffer = left_buf }
-    )
-  end
 
   if has_conflicts and opts.shortcuts.open_conflict_commits then
     vim.keymap.set(
@@ -452,38 +609,7 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
     )
   end
 
-  if opts.shortcuts.activate then
-    vim.keymap.set('n', opts.shortcuts.activate, function()
-      filetree.handle_enter(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
-
-  tabcommon.add_fwd_bwd_scroll(left_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
-
-  if opts.shortcuts.prev_file then
-    vim.keymap.set('n', opts.shortcuts.prev_file, function()
-      filetree.prev_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
-
-  if opts.shortcuts.next_file then
-    vim.keymap.set('n', opts.shortcuts.next_file, function()
-      filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
-
-  if opts.shortcuts.jump_to_first then
-    vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
-      local ft_st = tabdata.get_data().ft_st
-      for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
-        if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
-          vim.api.nvim_win_set_cursor(0, {i, 0})
-          filetree.handle_enter( tabdata.get_data().ft, ft_st)
-          return
-        end
-      end
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
+  add_standard_filetree_shortcuts(tab_data, left_buf, tab_data.ft, tab_data.ft_st, opts)
 
   if opts.shortcuts.stage_unstage then
     vim.keymap.set('n', opts.shortcuts.stage_unstage, function()
@@ -494,12 +620,6 @@ function M.open_diff_tab(sections, desc_key, desc_val, git_root, reload_index, w
   if opts.shortcuts.drop_changes then
     vim.keymap.set('n', opts.shortcuts.drop_changes, function()
       actions.drop_changes()
-    end, { noremap = true, silent = true, buffer = left_buf })
-  end
-
-  if opts.shortcuts.mark_file_for_diff then
-    vim.keymap.set('n', opts.shortcuts.mark_file_for_diff, function()
-      actions.mark_file_for_diff()
     end, { noremap = true, silent = true, buffer = left_buf })
   end
 

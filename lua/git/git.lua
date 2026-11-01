@@ -156,7 +156,7 @@ function M.status(opts)
       if vim.iter(status):all(function(item) return #item.contents == 0 end) then
         vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
       else
-        difftab.open_diff_tab(status, "Branch", branch, git_root, get_diff_status, true, opts)
+        difftab.open_diff_tab(status, nil, "Branch", branch, git_root, get_diff_status, true, opts)
       end
     end)
   end)
@@ -222,33 +222,72 @@ local function get_diff_revspec(git_root, revspec)
 
   return revspec, {{
     title = "Changes",
-    contents = status,
     left_sha = left_sha,
     right_sha = right_sha,
     contents = results,
   }}
 end
 
+--- Converts a git diff revspec into an equivalent git log commit range string.
+-- @param revspec string The input revspec (e.g., "master", "master...", "A..B", "A...B")
+-- @return string The converted range suitable for git log (e.g., "merge_base..B")
+local function async_diff_to_log_revspec(revspec)
+  if revspec == "" then
+    return "HEAD"
+  end
+  if vim.endswith(revspec, "^!") then
+    -- C^! means the commit C, excluding its parents
+    return revspec
+  end
+
+  -- 1. Check for triple-dot range: "A...B" or "A..."
+  local a_triple, b_triple = revspec:match("^([^.]*)%.%.%.([^.]*)$")
+  if a_triple then
+    local ref_a = a_triple ~= "" and a_triple or "HEAD"
+    local ref_b = b_triple ~= "" and b_triple or "HEAD"
+
+    local merge_base = vim.trim(io_helpers.run_cmd({"git", "merge-base", ref_a, ref_b}, {cwd = git_root}))
+    if merge_base then
+      return string.format("%s..%s", merge_base, ref_b)
+    else
+      -- Fallback if merge-base fails (e.g., unrelated histories)
+      return string.format("%s..%s", ref_a, ref_b)
+    end
+  end
+
+  -- 2. Check for double-dot range: "A..B" or "A.."
+  local a_double, b_double = revspec:match("^([^.]*)%.%.([^.]*)$")
+  if a_double then
+    local ref_a = a_double ~= "" and a_double or "HEAD"
+    local ref_b = b_double ~= "" and b_double or "HEAD"
+    return string.format("%s..%s", ref_a, ref_b)
+  end
+
+  -- 3. Single rev spec: "master" -> compares commit 'master' to current HEAD
+  return string.format("%s..HEAD", revspec)
+end
+
 function M.revspec(revspec, opts)
   io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
     local revspec, contents = get_diff_revspec(git_root, revspec)
+    local log_revspec = async_diff_to_log_revspec(revspec)
     vim.schedule(function()
       if vim.iter(contents):all(function(item) return #item.contents == 0 end) then
       vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
     else
-      local left_buf = difftab.open_diff_tab(contents, "Revspec", revspec, git_root, function(git_root)
-        local revspec, contents = get_diff_revspec(git_root, revspec)
-        return contents
-      end, false, opts)
+      local commits_iterator = log.parse_git_log_output({
+        "git", "-P", "-c", "gc.auto=0", "-c", "core.quotePath=false", "log", "--first-parent", "--stat", log_revspec,
+        "--diff-merges=first-parent", "--numstat", "--raw", "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+      }, {cwd = git_root}, opts)
 
-      if opts.shortcuts.open_log then
-        vim.keymap.set(
-          'n', opts.shortcuts.open_log, function() actions.revspec_display_commits_popup(git_root, revspec) end,
-          { noremap = true, silent = true, buffer = left_buf }
-        )
+      local left_buf = difftab.open_diff_tab(
+        contents, { title="Commits", iterator = commits_iterator }, "Revspec", revspec, git_root,
+        function(git_root)
+          local revspec, contents = get_diff_revspec(git_root, revspec)
+          return contents
+        end, false, opts)
       end
-    end
     end)
   end)
 end
@@ -283,7 +322,7 @@ function M.log(opts)
       }, (extra_params or {}), {
         "--diff-merges=first-parent",
         "--numstat", "--raw",
-        "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+        "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
       }}):flatten():totable()
       if single_file_path then
         table.insert(cmd, "--follow")
@@ -318,7 +357,7 @@ function M.stashes(opts)
         "-g", -- --walk-reflogs: iterate through the stash stack
         "--diff-merges=first-parent", -- ONLY compare against main commit (prevents double/massive output)
         "--numstat", "--raw",
-        "--pretty=format:%x1e%H%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+        "--pretty=format:%x1e%h%x1f%P%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
         "refs/stash"
       }}):flatten():totable()
       return log.parse_git_log_output(cmd, { cwd = git_root }, opts)

@@ -3,6 +3,7 @@ local io_helpers = require("core.io_helpers")
 local devicons = require("nvim-web-devicons")
 local difflayout = require("core.difflayout")
 local tabdata = require("core.tabdata")
+local filetree = require("core.filetree")
 
 local M = {}
 
@@ -249,6 +250,51 @@ function M.windows_set_diff_if_needed(window_list)
       difflayout.win_set_diff(winnr)
     end
   end
+end
+
+function M.refresh_from_iterator(log_iterator, on_done, on_update)
+  local is_first_render = true
+  local tab_data = tabdata.get_data()
+  local log = {}
+
+  local task = async.run(function()
+    for commits in log_iterator do
+      vim.list_extend(log, commits)
+      tab_data.log_count = #log
+      vim.schedule(function()
+        if on_update then
+          on_update(log)
+        else
+          filetree.set_contents(tab_data.ft, tab_data.ft_st, log, {
+            focus_selected = is_first_render,
+            expand_first_section = is_first_render,
+          })
+        end
+        is_first_render = false
+      end)
+      -- async.sleep(0)
+    end
+    if #log == 0 then
+      -- empty log: the loop rendered nothing, still clear the previous contents
+      tab_data.log_count = 0
+      vim.schedule(function()
+        if on_update then
+          on_update(log)
+        else
+          filetree.set_contents(tab_data.ft, tab_data.ft_st, log)
+        end
+      end)
+    end
+    if on_done then
+      vim.schedule(function() on_done(log) end)
+    end
+  end):raise_on_error()
+
+  tabdata.add_cleanup(function()
+    pcall(function()
+      task:close()
+    end)
+  end)
 end
 
 return M

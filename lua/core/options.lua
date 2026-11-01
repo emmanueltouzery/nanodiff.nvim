@@ -40,6 +40,7 @@ function M.get_diff_options()
     shortcuts = {
       jump_to_first = "F",
       mark_file_for_diff = "+",
+      yank_commit = "y",
     },
     panel_width = 40,
   })
@@ -50,6 +51,8 @@ function M.get_revspec_options()
     shortcuts = {
       open_log = "L",
     },
+    diff_log_panel_height_ratio = 0.6,
+    relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
   })
 end
 

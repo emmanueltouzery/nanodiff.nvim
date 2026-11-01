@@ -54,7 +54,7 @@ local function format_commit_summary(commit, has_selection, expanded)
   end
 
   -- %-10s -> Left-aligned string (10 chars wide)
-  return {
+  return {{
     {arrow .. " " .. commit_status .. " ", commit_status_hl},
     {string.format("%-9s", files_str), "DiffviewFilePanelCounter"},
     {" | ", "DiffviewNonText"},
@@ -68,10 +68,10 @@ local function format_commit_summary(commit, has_selection, expanded)
     {" " .. commit.subject, has_selection and "DiffviewFilePanelSelected" or nil},
     {" " .. commit.author_name, "DiffviewFilePanelPath"},
     {", " .. commit.date,  "DiffviewFilePanelPath"},
-  }
+  }}
 end
 
-local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
+function M.load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, commit, item)
   tab_data.selected_item = {section = commit.hash, path = item.path}
@@ -83,7 +83,7 @@ local function load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_re
     git_root, tab_data.diff2_win, item.path, item.right_sha or commit.hash,
     nil, barrier.add(tab_data.diff2_win))
   if not skip_refresh_bottom_buf then
-    filetree.redisplay(tab_data.ft, tab_data.ft_st, true)
+    filetree.redisplay(ft, ft_st, true)
   end
   barrier.wait(tabcommon.windows_set_diff_if_needed)
 end
@@ -108,43 +108,6 @@ local function get_header(tabnr)
   }
 end
 
-local function refresh_from_iterator(log_iterator, on_done)
-  local is_first_render = true
-  local tab_data = tabdata.get_data()
-  local log = {}
-
-  local task = async.run(function()
-    for commits in log_iterator do
-      vim.list_extend(log, commits)
-      tab_data.log_count = #log
-      vim.schedule(function()
-        filetree.set_contents(tab_data.ft, tab_data.ft_st, log, {
-          focus_selected = is_first_render,
-          expand_first_section = is_first_render,
-        })
-        is_first_render = false
-      end)
-      -- async.sleep(0)
-    end
-    if #log == 0 then
-      -- empty log: the loop rendered nothing, still clear the previous contents
-      tab_data.log_count = 0
-      vim.schedule(function()
-        filetree.set_contents(tab_data.ft, tab_data.ft_st, log)
-      end)
-    end
-    if on_done then
-      vim.schedule(function() on_done(log) end)
-    end
-  end):raise_on_error()
-
-  tabdata.add_cleanup(function()
-    pcall(function()
-      task:close()
-    end)
-  end)
-end
-
 function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   vim.cmd("tabnew")
   local tabnr = vim.api.nvim_get_current_tabpage()
@@ -155,7 +118,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   tab_data.search_settings = { ["=n"] = "--max-count=" .. opts.default_max_items }
   -- API, can be used by external callers and actions. on_done(log) is called once the log is fully loaded
   tab_data.reload_log = function(on_done)
-    refresh_from_iterator(get_iterator_fn(tab_data), on_done)
+    tabcommon.refresh_from_iterator(get_iterator_fn(tab_data), on_done)
   end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.bottom_win = bottom_win
@@ -169,7 +132,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
     render_item = tabcommon.tree_render_item,
     render_section = format_commit_summary,
     item_activated = function(ft, ft_st, section, item, skip_refresh_bottom_buf)
-      load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, skip_refresh_bottom_buf)
+      M.load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, skip_refresh_bottom_buf)
     end,
     expand_default = false,
   })
@@ -180,7 +143,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
 
   difflayout.setup_log_tab_layout(bottom_buf, opts)
 
-  refresh_from_iterator(get_iterator_fn(tab_data))
+  tabcommon.refresh_from_iterator(get_iterator_fn(tab_data))
 
   vim.api.nvim_set_current_win(bottom_win)
 
@@ -210,7 +173,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
       'n', opts.shortcuts.open_log, function()
         local section, item = filetree.get_cur_section_item(tabdata.get_data().ft_st)
         if section then
-          actions.revspec_display_commits_popup(git_root, section.hash .. "^!")
+          actions.display_commit_popup(git_root, section.hash)
         end
       end,
       { noremap = true, silent = true, buffer = left_buf }
@@ -233,7 +196,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
           vim.schedule(function()
             local tab_data = tabdata.get_data()
             tab_data.ft_st.selected_item = nil -- reset selected_item
-            refresh_from_iterator(iterator)
+            tabcommon.refresh_from_iterator(iterator)
           end)
         end)
       end)
