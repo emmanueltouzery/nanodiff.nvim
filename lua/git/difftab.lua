@@ -365,7 +365,6 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
       return tabcommon.render_commit_section(section, has_selection, nil, opts)
     end,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
-      -- TODO shouldn't set tab_data.selected_item
       logtab.load_entry(
         tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, left_bottom_buf,
         tab_data.git_root, section or {}, item,
@@ -569,7 +568,13 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
 
     tabcommon.refresh_from_iterator(
       iterator_section.iterator,
-      function() end, -- on_done
+      function() -- on_done
+        local required_height = #tab_data.log * 2 + 2
+        if required_height < iterator_height then
+          -- shrink the pane in height if possible
+          vim.api.nvim_win_set_height(tab_data.left_bottom_win, required_height)
+        end
+      end,
       function(log)
         tab_data.log = log
         filetree.set_contents(tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, log, {
