@@ -300,15 +300,16 @@ end
 function M.render_commit_section(section, has_selection, icon, opts)
   local max_length = opts.panel_width - 3
   local title = section.subject
-  -- if #title > max_length then
-  --   title = vim.trim(string.sub(title, 1, max_length)) .. "…"
-  -- end
   local title_hl = nil
   if has_selection then
     title_hl = "DiffviewFilePanelTitle" 
   end
+  local default_icon = " "
+  if #section.parents > 1 then
+    default_icon = " "
+  end
   return {{
-    { icon or " ", "DiffviewHash" },
+    { icon or default_icon, "DiffviewHash" },
     { title .. " ", title_hl },
   }, {
     { "¦ ", "DiffviewHash"},
