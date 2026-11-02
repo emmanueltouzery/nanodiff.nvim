@@ -298,9 +298,13 @@ function M.refresh_from_iterator(log_iterator, on_done, on_update)
 end
 
 function M.render_commit_section(section, has_selection, icon, opts)
-  local max_length = opts.panel_width - 3
   local title = section.subject
   local title_hl = nil
+  local max_length_author = opts.panel_width - #section.hash - #section.date - 4
+  local author_name = section.author_name
+  if #author_name > max_length_author then
+    author_name = string.sub(author_name, 1, max_length_author - 1) .. "…"
+  end
   if has_selection then
     title_hl = "DiffviewFilePanelTitle" 
   end
@@ -313,7 +317,7 @@ function M.render_commit_section(section, has_selection, icon, opts)
     { title .. " ", title_hl },
   }, {
     { "¦ ", "DiffviewHash"},
-    { section.author_name, "DiffviewReference"},
+    { author_name, "DiffviewReference"},
     { " " .. section.date, "DiffviewDim1"},
     {section.hash, "DiffviewReflogSelector+right_align"},
   }}
