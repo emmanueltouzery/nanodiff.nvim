@@ -219,7 +219,8 @@ local function windows_prefer_non_null_buffer(window_list)
   return vim.iter(window_list):find(function(w) return not window_contains_nil_buffer(w) end) or window_list[1]
 end
 
-function M.add_fwd_bwd_scroll(panel_buf, window_list, opts)
+function M.add_fwd_bwd_scroll(ft, ft_st, window_list, opts)
+  local panel_buf = ft_st.bufnr
   local tab_data = tabdata.get_data()
   if opts.shortcuts.scroll_backward then
     vim.keymap.set('n', opts.shortcuts.scroll_backward, function()
@@ -238,6 +239,19 @@ function M.add_fwd_bwd_scroll(panel_buf, window_list, opts)
       vim.api.nvim_win_call(w, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
+    end, { noremap = true, silent = true, buffer = panel_buf })
+  end
+
+  if opts.shortcuts.jump_to_first then
+    vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
+      local ft_st = ft_st
+      for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
+        if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
+          vim.api.nvim_win_set_cursor(0, {i, 0})
+          filetree.handle_enter( ft, ft_st)
+          return
+        end
+      end
     end, { noremap = true, silent = true, buffer = panel_buf })
   end
 end

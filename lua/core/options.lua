@@ -4,6 +4,7 @@ function M.get_common_options()
   return {
     shortcuts = {
       close_tab = "q",
+      jump_to_first = "F",
       activate = { "<CR>", "<2-LeftMouse>" },
       scroll_backward = "<C-b>",
       scroll_forward = "<C-f>",
@@ -38,7 +39,6 @@ end
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
-      jump_to_first = "F",
       mark_file_for_diff = "+",
       yank_commit = "y",
     },

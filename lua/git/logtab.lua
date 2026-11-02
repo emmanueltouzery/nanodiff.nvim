@@ -158,7 +158,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
     )
   end
 
-  tabcommon.add_fwd_bwd_scroll(left_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
+  tabcommon.add_fwd_bwd_scroll(tabdata.get_data().ft, tabdata.get_data().ft_st, {tab_data.diff1_win, tab_data.diff2_win}, opts)
 
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()

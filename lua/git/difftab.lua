@@ -425,7 +425,7 @@ local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
     end, { noremap = true, silent = true, buffer = buf })
   end
 
-  tabcommon.add_fwd_bwd_scroll(buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
+  tabcommon.add_fwd_bwd_scroll(ft, ft_st, {tab_data.diff1_win, tab_data.diff2_win}, opts)
 
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
@@ -436,19 +436,6 @@ local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
   if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(ft, ft_st)
-    end, { noremap = true, silent = true, buffer = buf })
-  end
-
-  if opts.shortcuts.jump_to_first then
-    vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
-      local ft_st = ft_st
-      for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
-        if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
-          vim.api.nvim_win_set_cursor(0, {i, 0})
-          filetree.handle_enter( ft, ft_st)
-          return
-        end
-      end
     end, { noremap = true, silent = true, buffer = buf })
   end
 
