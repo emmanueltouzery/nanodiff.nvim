@@ -54,7 +54,7 @@ function M.parse_git_log_output(cmd, system_opts, opts)
         local f = vim.split(header, "\x1f", { plain = true })
 
         local timestamp = tonumber(f[4])
-        local iso_date = f[5]
+        local iso_date = string.sub(f[5], 1, 16) -- drop seconds+TZ, no space when displaying (render_commit_section in particular)
         local relative_date = f[6]
         local date = os.difftime(now, timestamp) > opts.relative_date_cutoff_seconds and iso_date or relative_date
 

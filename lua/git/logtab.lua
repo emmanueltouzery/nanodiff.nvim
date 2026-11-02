@@ -9,69 +9,7 @@ local async = vim.async
 
 local M = {}
 
-local function format_commit_summary(commit, has_selection, expanded)
-  local file_count = #commit.files
-  local total_added = 0
-  local total_deleted = 0
-  local commit_status = "M"
-  local commit_status_hl = nil
-  if vim.iter(commit.files):all(function(c) return c.status == "A" end) then
-    commit_status = "A"
-    commit_status_hl = "DiffviewStatusAdded"
-  end
-  if vim.iter(commit.files):all(function(c) return c.status == "D" end) then
-    commit_status = "D"
-    commit_status_hl = "DiffviewStatusDeleted"
-  end
-
-  for _, file in ipairs(commit.files) do
-    total_added = total_added + (tonumber(file.added) or 0)
-    total_deleted = total_deleted + (tonumber(file.deleted) or 0)
-  end
-
-  local files_str = string.format("%d %s", file_count, file_count == 1 and "file" or "files")
-
-  local refs_str = ""
-  -- for git stash, prefer ref_log (%gd -> "stash@{0}") over ref_names (%D -> "refs/stash")
-  -- for git log, ref_log will be ""
-  if commit.ref_log and commit.ref_log ~= "" then
-    refs_str = string.format(" %s", commit.ref_log)
-  elseif commit.ref_names and commit.ref_names ~= "" then
-    refs_str = string.format(" (%s)", commit.ref_names)
-  end
-
-  local short_hash = commit.hash:sub(1, 8)
-
-  local added_str = tostring(total_added)
-  local added_pad = string.rep(" ", math.max(0, 5 - #added_str))
-
-  local deleted_str = tostring(total_deleted)
-  local deleted_pad = string.rep(" ", math.max(0, 5 - #deleted_str))
-
-  local arrow = " "
-  if expanded then
-    arrow = " "
-  end
-
-  -- %-10s -> Left-aligned string (10 chars wide)
-  return {{
-    {arrow .. " " .. commit_status .. " ", commit_status_hl},
-    {string.format("%-9s", files_str), "DiffviewFilePanelCounter"},
-    {" | ", "DiffviewNonText"},
-    {added_pad, nil},
-    {added_str, "DiffviewFilePanelInsertions"},
-    {deleted_pad, nil},
-    {deleted_str, "DiffviewFilePanelDeletions"},
-    {"| ", "DiffviewNonText"},
-    {short_hash, "DiffviewHash"},
-    {refs_str, "DiffviewReference"},
-    {" " .. commit.subject, has_selection and "DiffviewFilePanelSelected" or nil},
-    {" " .. commit.author_name, "DiffviewFilePanelPath"},
-    {", " .. commit.date,  "DiffviewFilePanelPath"},
-  }}
-end
-
-function M.load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_refresh_bottom_buf)
+function M.load_entry(ft, ft_st, left_buf, git_root, commit, item, skip_refresh_left_buf)
   local tab_data = tabdata.get_data()
   filetree.set_selected_item(ft_st, commit, item)
   tab_data.selected_item = {section = commit.hash, path = item.path}
@@ -82,7 +20,7 @@ function M.load_entry(ft, ft_st, bottom_buf, git_root, commit, item, skip_refres
   tabcommon.win_load_buf(
     git_root, tab_data.diff2_win, item.path, item.right_sha or commit.hash,
     nil, barrier.add(tab_data.diff2_win))
-  if not skip_refresh_bottom_buf then
+  if not skip_refresh_left_buf then
     filetree.redisplay(ft, ft_st, true)
   end
   barrier.wait(tabcommon.windows_set_diff_if_needed)
@@ -111,8 +49,8 @@ end
 function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   vim.cmd("tabnew")
   local tabnr = vim.api.nvim_get_current_tabpage()
-  local bottom_buf = vim.api.nvim_win_get_buf(0)
-  local bottom_win = vim.api.nvim_get_current_win()
+  local left_buf = vim.api.nvim_win_get_buf(0)
+  local left_win = vim.api.nvim_get_current_win()
 
   local tab_data = tabdata.get_data()
   tab_data.search_settings = { ["=n"] = "--max-count=" .. opts.default_max_items }
@@ -121,8 +59,18 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
     tabcommon.refresh_from_iterator(get_iterator_fn(tab_data), on_done)
   end
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
-  tab_data.bottom_win = bottom_win
+  tab_data.left_win = left_win
   tab_data.title = title
+
+  -- nicer looks for commit messages that'll be too long
+  vim.api.nvim_set_option_value("wrap", false, { win = 0 })
+  vim.api.nvim_set_option_value("list", true, { win = 0 })
+  vim.api.nvim_set_option_value("listchars", "extends:…", { win = 0 })
+
+  local icon = nil -- default
+  if title == "Stashes" then
+    icon = " "
+  end
 
   tab_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.hash end,
@@ -130,31 +78,31 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
     -- hardcode the tabpage, because we're async and the user may switch the page while we're loading
     get_header = function() return get_header(tabnr) end,
     render_item = tabcommon.tree_render_item,
-    render_section = format_commit_summary,
-    item_activated = function(ft, ft_st, section, item, skip_refresh_bottom_buf)
-      M.load_entry(ft, ft_st, bottom_buf, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, skip_refresh_bottom_buf)
+    render_section = function(section, has_selection) return tabcommon.render_commit_section(section, has_selection, icon, opts) end,
+    item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
+      M.load_entry(ft, ft_st, left_buf, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, skip_refresh_left_buf)
     end,
     expand_default = false,
   })
   tab_data.ft_st = filetree.create_ft_st({
-    bufnr = bottom_buf,
-    winnr = bottom_win,
+    bufnr = left_buf,
+    winnr = left_win,
   })
 
-  difflayout.setup_log_tab_layout(bottom_buf, opts)
+  difflayout.diff_tab_layout_init(left_buf, opts)
 
   tabcommon.refresh_from_iterator(get_iterator_fn(tab_data))
 
-  vim.api.nvim_set_current_win(bottom_win)
+  vim.api.nvim_set_current_win(left_win)
 
-  vim.api.nvim_buf_set_name(bottom_buf, "Nanodiff Log-" .. vim.api.nvim_get_current_tabpage())
+  vim.api.nvim_buf_set_name(left_buf, "Nanodiff Log-" .. vim.api.nvim_get_current_tabpage())
 
-  vim.bo[bottom_buf].filetype = "NanodiffLogPanel"
+  vim.bo[left_buf].filetype = "NanodiffLogPanel"
 
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()
       filetree.handle_enter(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.yank_commit then
@@ -165,7 +113,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
         vim.fn.setreg("+", hash)
         vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
       end
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.open_log then
@@ -200,7 +148,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
           end)
         end)
       end)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.close_tab then
@@ -210,30 +158,30 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
     )
   end
 
-  tabcommon.add_fwd_bwd_scroll(bottom_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
+  tabcommon.add_fwd_bwd_scroll(left_buf, {tab_data.diff1_win, tab_data.diff2_win}, opts)
 
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
       filetree.prev_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.unstash then
     vim.keymap.set('n', opts.shortcuts.unstash, function()
       actions.unstash()
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 
   if opts.shortcuts.drop_stash then
     vim.keymap.set('n', opts.shortcuts.drop_stash, function()
       actions.drop_stash()
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buffer = left_buf })
   end
 end
 

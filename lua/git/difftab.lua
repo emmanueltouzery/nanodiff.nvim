@@ -362,23 +362,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
       )
     end,
     render_section = function(section, has_selection)
-      local file_count_str = string.format("󱔗 %d", #(section.files))
-      local max_length = opts.panel_width - #section.hash - #file_count_str - 4
-      local title = section.subject
-      if #title > max_length then
-        title = vim.trim(string.sub(title, 1, max_length)) .. "…"
-      end
-      local title_hl = nil
-      if has_selection then
-        title_hl = "DiffviewFilePanelTitle" 
-      end
-      return {{
-        { " " .. section.hash, "DiffviewHash" }, { " " .. title .. " ", title_hl }, {file_count_str, "DiffviewFilePanelCounter+right_align"},
-      }, {
-        { "¦ ", "DiffviewHash"},
-        { section.author_name, "DiffviewReflogSelector"},
-        { " " .. section.date, "DiffviewDim1"},
-      }}
+      return tabcommon.render_commit_section(section, has_selection, nil, opts)
     end,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
       -- TODO shouldn't set tab_data.selected_item
@@ -398,6 +382,11 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
     winnr = left_bottom_win,
     selected_item = selected_item,
   })
+
+  -- nicer looks for commit messages that'll be too long
+  vim.api.nvim_set_option_value("wrap", false, { win = left_bottom_win })
+  vim.api.nvim_set_option_value("list", true, { win = left_bottom_win })
+  vim.api.nvim_set_option_value("listchars", "extends:…", { win = left_bottom_win })
 
   if opts.shortcuts.open_log then
     vim.keymap.set(
@@ -421,7 +410,6 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
       end
     end, { noremap = true, silent = true, buffer = bottom_buf })
   end
-
 end
 
 local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)

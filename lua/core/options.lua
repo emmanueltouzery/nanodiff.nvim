@@ -21,8 +21,8 @@ function M.get_log_options()
       open_log = "L",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
-    panel_height = 15,
     default_max_items = 256,
+    panel_width = 43, -- calculated for render_commit_section to fit
   })
 end
 
@@ -42,7 +42,7 @@ function M.get_diff_options()
       mark_file_for_diff = "+",
       yank_commit = "y",
     },
-    panel_width = 40,
+    panel_width = 43, -- calculated for render_commit_section to fit
   })
 end
 

@@ -149,35 +149,6 @@ function M.diff_tab_layout_init(left_buf, opts)
   M.set_win_options(left_win)
 end
 
-function M.setup_log_tab_layout(bottom_buf, opts)
-  local tab_data = tabdata.get_data()
-  local bottom_win = tab_data.bottom_win
-
-  vim.wo.spell = false
-
-  vim.bo[bottom_buf].buftype = "nofile"
-  vim.bo[bottom_buf].bufhidden = "wipe"
-  vim.bo[bottom_buf].swapfile = false
-
-  -- Open a new window above the current one
-  tab_data.diff1_win = vim.api.nvim_open_win(0, true, {
-    split = 'above',
-    win = current_win,
-  })
-
-  -- Split that new window vertically to create the top-right window
-  tab_data.diff2_win = vim.api.nvim_open_win(0, true, {
-    split = 'right',
-    win = top_left_win,
-  })
-  vim.api.nvim_win_resize(bottom_win, -1, opts.panel_height)
-
-  -- Lock the height against <C-W>= balancing
-  vim.wo[bottom_win].winfixheight = true
-
-  M.set_win_options(bottom_win)
-end
-
 -- I have seen diff "corruption", the diff being incorrect, if
 -- loading windows one by one and enabling diff mode for them
 -- as they are loaded (so the windows configuration keeps changing

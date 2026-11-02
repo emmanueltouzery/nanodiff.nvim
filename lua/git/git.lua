@@ -363,6 +363,7 @@ function M.stashes(opts)
       return log.parse_git_log_output(cmd, { cwd = git_root }, opts)
     end
     vim.schedule(function()
+      -- logtab does title == "Stashes" tests!
       logtab.open_log_tab("Stashes", get_iterator_fn, git_root, opts)
     end)
   end, opts)
