@@ -326,6 +326,10 @@ function M.render_commit_section(section, has_selection, icon, opts)
   if #section.parents > 1 then
     default_icon = " "
   end
+  local tag_name = section.ref_names and section.ref_names:match("tag:%s*([^,%s]+)")
+  if tag_name ~= nil then
+    default_icon = "󰓹 " .. tag_name .. " "
+  end
   return {{
     { icon or default_icon, "DiffviewHash" },
     { title .. " ", title_hl },
