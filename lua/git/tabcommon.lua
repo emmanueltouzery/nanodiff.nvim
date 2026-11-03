@@ -244,7 +244,6 @@ function M.add_fwd_bwd_scroll(ft, ft_st, window_list, opts)
 
   if opts.shortcuts.jump_to_first then
     vim.keymap.set('n', opts.shortcuts.jump_to_first, function()
-      local ft_st = ft_st
       for i = 1, vim.api.nvim_buf_line_count(ft_st.bufnr) do
         if ft_st.line_to_item[i] ~= nil and ft_st.line_to_item[i].type == "path" then
           vim.api.nvim_win_set_cursor(0, {i, 0})
