@@ -550,6 +550,8 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     -- vim.wo[tab_data.left_bottom_win].winbar = "Commits"
     prepare_leftpane_log_filetree(tab_data, tab_data.left_bottom_win, tab_data.left_bottom_buf, opts)
 
+    difflayout.diff_tab_layout_init(left_buf, opts)
+
     add_standard_filetree_shortcuts(
       tab_data, tab_data.left_bottom_buf, tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, opts)
 
@@ -570,9 +572,9 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
         })
       end
     )
+  else
+    difflayout.diff_tab_layout_init(left_buf, opts)
   end
-
-  difflayout.diff_tab_layout_init(left_buf, opts)
 
   vim.api.nvim_set_current_win(left_win)
 
