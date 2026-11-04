@@ -326,11 +326,16 @@ function M.render_commit_section(section, has_selection, icon, opts)
     default_icon = " "
   end
   local tag_name = section.ref_names and section.ref_names:match("tag:%s*([^,%s]+)")
-  if tag_name ~= nil then
+  local head_for = section.ref_names and section.ref_names:match("([^%s/]+)/HEAD$")
+  if tag_name ~= nil and head_for ~= nil then
+    default_icon = "󰓹 " .. tag_name .. "󰉳 " .. head_for .. " "
+  elseif tag_name ~= nil then
     default_icon = "󰓹 " .. tag_name .. " "
+  elseif head_for ~= nil then
+    default_icon = "󰉳 " .. head_for .. " "
   end
   return {{
-    { icon or default_icon, "DiffviewHash" },
+    { icon or default_icon, "DiffviewFilePanelCounter" },
     { title .. " ", title_hl },
   }, {
     { "¦ ", "DiffviewHash"},
