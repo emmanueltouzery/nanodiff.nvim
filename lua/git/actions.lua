@@ -57,7 +57,7 @@ local function do_drop_changes(item, do_hash)
       end)
     else
       -- tracked file, staged or not
-      io_helpers.run_cmd({"git", "restore", "--source=HEAD", "--staged", "--worktree", "--", item.path})
+      io_helpers.run_cmd({"git", "restore", "--source=HEAD", "--staged", "--worktree", "--", item.path}, {cwd = git_root})
     end
     if msg ~= nil then
       vim.schedule(function()
