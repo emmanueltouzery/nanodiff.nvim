@@ -102,8 +102,18 @@ function M.unstash()
       -- no item under the cursor
       return
     end
-    io_helpers.run_cmd({"git", "stash", "pop", section.ref_log}, {cwd = tab_data.git_root})
-    vim.schedule(function() vim.cmd.tabclose() end)
+    local res = io_helpers.async_sys({"git", "stash", "pop", section.ref_log}, {cwd = tab_data.git_root})
+    vim.schedule(function()
+      vim.cmd.tabclose()
+      if res.code ~= 0 then
+        -- git stash pop error of a conflict when unstashing is normal operation.
+        -- in that case the error is reported on stdout.
+        vim.notify(
+          "Git stash pop error: " .. (res.stderr ~= "" and res.stderr or res.stdout),
+          vim.log.levels.WARN, {source="nanodiff"}
+        )
+      end
+    end)
   end):raise_on_error()
 end
 
