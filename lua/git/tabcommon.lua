@@ -313,7 +313,8 @@ end
 function M.render_commit_section(section, has_selection, icon, opts)
   local title = section.subject
   local title_hl = nil
-  local max_length_author = opts.panel_width - #section.hash - #section.date - 4
+  local ref = section.ref_log or section.hash
+  local max_length_author = opts.panel_width - #ref - #section.date - 4
   local author_name = section.author_name
   if #author_name > max_length_author then
     author_name = string.sub(author_name, 1, max_length_author - 1) .. "…"
@@ -341,7 +342,7 @@ function M.render_commit_section(section, has_selection, icon, opts)
     { "¦ ", "DiffviewHash"},
     { author_name, "DiffviewReference"},
     { " " .. section.date, "DiffviewDim1"},
-    {section.hash, "DiffviewReflogSelector+right_align"},
+    {ref, "DiffviewReflogSelector+right_align"},
   }}
 end
 

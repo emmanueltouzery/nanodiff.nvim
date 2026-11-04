@@ -65,7 +65,7 @@ function M.parse_git_log_output(cmd, system_opts, opts)
           timestamp = timestamp,
           date = date,
           ref_names = f[7],
-          ref_log = f[8],
+          ref_log = f[8] ~= "" and f[8] or nil,
           subject = f[9],
           stat = {},
           files = {}
