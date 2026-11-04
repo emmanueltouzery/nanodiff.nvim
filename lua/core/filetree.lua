@@ -280,7 +280,7 @@ function M.redisplay(ft, ft_st, focus_selected)
   local selection_line = nil
   for section_idx, section in ipairs(ft_st.sections) do
     local section_key = ft.section_get_key(section)
-    if ft.lines_between_sections ~= nil then
+    if section_idx < #ft_st.sections and ft.lines_between_sections ~= nil then
       local prev_section = nil
       if section_idx > 1 then
         prev_section = ft_st.sections[section_idx-1]
