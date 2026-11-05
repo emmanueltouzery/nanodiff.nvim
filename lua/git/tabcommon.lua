@@ -327,7 +327,7 @@ function M.render_commit_section(section, has_selection, icon, opts)
     default_icon = " "
   end
   local tag_name = section.ref_names and section.ref_names:match("tag:%s*([^,%s]+)")
-  local head_for = section.ref_names and section.ref_names:match("([^%s/]+)/HEAD$")
+  local head_for = section.ref_names and section.ref_names:match("([^%s/]+)/HEAD")
   if tag_name ~= nil and head_for ~= nil then
     default_icon = "󰓹 " .. tag_name .. "󰉳 " .. head_for .. " "
   elseif tag_name ~= nil then
