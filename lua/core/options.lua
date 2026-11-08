@@ -18,7 +18,7 @@ function M.get_log_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
       filters = "g!",
-      yank_commit = "y",
+      yank_commit = "<C-y>",
       open_log = "L",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
@@ -40,7 +40,7 @@ function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
       mark_file_for_diff = "+",
-      yank_commit = "y",
+      yank_commit = "<C-y>",
     },
     panel_width = 43, -- calculated for render_commit_section to fit
   })
