@@ -39,14 +39,19 @@ local function get_header(tabnr)
     table.insert(title_row, {tab_data.title .. " ", "DiffviewFilePanelTitle"})
   end
   table.insert(title_row, {string.format("(%d)", tab_data.log_count), "DiffviewFilePanelCounter"})
-  return {
+  local res = {
     first_row,
     {},
     title_row
   }
+  if tab_data.subtitle then
+    table.insert(res, tab_data.subtitle)
+    table.insert(res, {})
+  end
+  return res
 end
 
-function M.open_log_tab(title, get_iterator_fn, git_root, opts)
+function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
   vim.cmd("tabnew")
   local tabnr = vim.api.nvim_get_current_tabpage()
   local left_buf = vim.api.nvim_win_get_buf(0)
@@ -61,6 +66,7 @@ function M.open_log_tab(title, get_iterator_fn, git_root, opts)
   tab_data.git_root = git_root -- we don't really need this, but it's handy for API users
   tab_data.left_win = left_win
   tab_data.title = title
+  tab_data.subtitle = subtitle
 
   -- nicer looks for commit messages that'll be too long
   vim.api.nvim_set_option_value("wrap", false, { win = 0 })

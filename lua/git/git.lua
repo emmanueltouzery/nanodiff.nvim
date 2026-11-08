@@ -330,8 +330,15 @@ function M.log(opts)
       vim.list_extend(cmd, { "--", single_file_path or git_root })
       return log.parse_git_log_output(cmd, { cwd = git_root }, opts)
     end
+    local branch = vim.trim(io_helpers.run_cmd({"git", "branch", "--show"}))
     vim.schedule(function()
-      logtab.open_log_tab(log_view_title(git_root), get_iterator_fn, git_root, opts)
+      logtab.open_log_tab(
+        log_view_title(git_root, branch),
+        {
+          {"Branch: ", "DiffviewFolderName"},
+          {branch, "DiffviewFilePanelPath"}
+        },
+        get_iterator_fn, git_root, opts)
     end)
   end, opts)
 end
@@ -364,7 +371,7 @@ function M.stashes(opts)
     end
     vim.schedule(function()
       -- logtab does title == "Stashes" tests!
-      logtab.open_log_tab("Stashes", get_iterator_fn, git_root, opts)
+      logtab.open_log_tab("Stashes", nil, get_iterator_fn, git_root, opts)
     end)
   end, opts)
 end
