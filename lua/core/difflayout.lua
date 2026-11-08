@@ -131,8 +131,8 @@ function M.diff_tab_layout_init(left_buf, opts)
   vim.cmd("wincmd L") -- if we have two vertical panes on the left, move fully to the right
   local diff1_win = vim.api.nvim_get_current_win()
 
-  -- Set left window width to 40 characters
-  vim.api.nvim_win_set_width(left_win, opts.panel_width)
+  -- Set left window width
+  vim.api.nvim_win_set_width(left_win, opts.panel_width())
   -- Lock the width against <C-W>= balancing
   vim.wo[left_win].winfixwidth = true
 
