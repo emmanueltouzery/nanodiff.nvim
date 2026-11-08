@@ -301,8 +301,7 @@ function M.log(opts)
   local function log_view_title(git_root)
     local title = "Log view"
     if single_file_path then
-      single_file_path = vim.fs.relpath(git_root, single_file_path)
-      title = { {title .. " ", "DiffviewFilePanelTitle"}, { single_file_path .. " ", "DiffviewFolderName" } }
+      title = { {title .. " ", "DiffviewFilePanelTitle"}, { vim.fn.fnamemodify(single_file_path, ":t") .. " ", "DiffviewFolderName" } }
     end
     return title
   end
