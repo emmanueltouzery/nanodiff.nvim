@@ -108,7 +108,7 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()
       filetree.handle_enter(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.yank_commit then
@@ -119,7 +119,7 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
         vim.fn.setreg("+", hash)
         vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
       end
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.open_log then
@@ -130,7 +130,7 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
           actions.display_commit_popup(git_root, section.hash)
         end
       end,
-      { noremap = true, silent = true, buffer = left_buf }
+      { noremap = true, silent = true, buf = left_buf }
     )
   end
 
@@ -154,13 +154,13 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
           end)
         end)
       end)
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.close_tab then
     vim.keymap.set(
       'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
-      { noremap = true, silent = true, buffer = left_buf }
+      { noremap = true, silent = true, buf = left_buf }
     )
   end
 
@@ -169,25 +169,25 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
       filetree.prev_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(tabdata.get_data().ft, tabdata.get_data().ft_st)
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.unstash then
     vim.keymap.set('n', opts.shortcuts.unstash, function()
       actions.unstash()
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.drop_stash then
     vim.keymap.set('n', opts.shortcuts.drop_stash, function()
       actions.drop_stash()
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 end
 

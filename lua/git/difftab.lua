@@ -62,13 +62,13 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
         vim.keymap.set('n', opts.shortcuts.conflict_previous, function()
           local conflict_lines = vim.tbl_map(function(c) return c.start_lnum end, tab_data.conflicts_state.conflicts[item.path])
           jump_match(conflict_lines, "prev")
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
       if opts.shortcuts.conflict_next then
         vim.keymap.set('n', opts.shortcuts.conflict_next, function()
           local conflict_lines = vim.tbl_map(function(c) return c.start_lnum end, tab_data.conflicts_state.conflicts[item.path])
           jump_match(conflict_lines, "next")
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       local function get_conflict_at_line()
@@ -100,7 +100,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           if conflict then
             conflict_choose_ours(conflict)
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       if opts.shortcuts.all_conflicts_choose_ours then
@@ -111,7 +111,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           for i = #conflicts, 1, -1 do
             conflict_choose_ours(conflicts[i])
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       local function conflict_choose_theirs(conflict)
@@ -127,7 +127,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           if conflict then
             conflict_choose_theirs(conflict)
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       if opts.shortcuts.all_conflicts_choose_theirs then
@@ -138,7 +138,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           for i = #conflicts, 1, -1 do
             conflict_choose_theirs(conflicts[i])
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       local function conflict_choose_all(conflict)
@@ -159,7 +159,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           if conflict then
             conflict_choose_all(conflict)
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
 
       if opts.shortcuts.all_conflicts_choose_all then
@@ -170,7 +170,7 @@ local function load_entry(ft, ft_st, git_root, section, item, skip_refresh_left_
           for i = #conflicts, 1, -1 do
             conflict_choose_all(conflicts[i])
           end
-        end, { noremap = true, silent = true, buffer = mid_buf })
+        end, { noremap = true, silent = true, buf = mid_buf })
       end
     end
     tabcommon.windows_set_diff_if_needed(all_windows)
@@ -264,11 +264,11 @@ local function open_side_by_side_popup(side1, side2, title, opts)
 
     vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
       vim.api.nvim_set_current_win(win_right)
-    end, { buffer = side1.buf, silent = true })
+    end, { buf = side1.buf, silent = true })
 
     vim.keymap.set('n', opts.shortcuts.conflict_modal_switch_commit, function()
       vim.api.nvim_set_current_win(win_left)
-    end, { buffer = side2.buf, silent = true })
+    end, { buf = side2.buf, silent = true })
 
     for _, win in ipairs({ win_left, win_right }) do
         local bufnr = vim.api.nvim_win_get_buf(win)
@@ -276,7 +276,7 @@ local function open_side_by_side_popup(side1, side2, title, opts)
             pcall(vim.api.nvim_win_close, win_left, true)
             pcall(vim.api.nvim_win_close, win_right, true)
             pcall(vim.api.nvim_win_close, win_title, true)
-        end, { buffer = bufnr, silent = true })
+        end, { buf = bufnr, silent = true })
     end
 
     return win_left, win_right
@@ -395,7 +395,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
           actions.display_commit_popup(git_root, section.hash)
         end
       end,
-      { noremap = true, silent = true, buffer = left_buf }
+      { noremap = true, silent = true, buf = left_buf }
     )
   end
 
@@ -407,7 +407,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
         vim.fn.setreg("+", hash)
         vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
       end
-    end, { noremap = true, silent = true, buffer = bottom_buf })
+    end, { noremap = true, silent = true, buf = bottom_buf })
   end
 end
 
@@ -415,14 +415,14 @@ local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
   if opts.shortcuts.close_tab then
     vim.keymap.set(
       'n', opts.shortcuts.close_tab, function() vim.cmd.tabclose() end,
-      { noremap = true, silent = true, buffer = buf }
+      { noremap = true, silent = true, buf = buf }
     )
   end
 
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()
       filetree.handle_enter(ft, ft_st)
-    end, { noremap = true, silent = true, buffer = buf })
+    end, { noremap = true, silent = true, buf = buf })
   end
 
   tabcommon.add_fwd_bwd_scroll(ft, ft_st, {tab_data.diff1_win, tab_data.diff2_win}, opts)
@@ -430,19 +430,19 @@ local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
   if opts.shortcuts.prev_file then
     vim.keymap.set('n', opts.shortcuts.prev_file, function()
       filetree.prev_file(ft, ft_st)
-    end, { noremap = true, silent = true, buffer = buf })
+    end, { noremap = true, silent = true, buf = buf })
   end
 
   if opts.shortcuts.next_file then
     vim.keymap.set('n', opts.shortcuts.next_file, function()
       filetree.next_file(ft, ft_st)
-    end, { noremap = true, silent = true, buffer = buf })
+    end, { noremap = true, silent = true, buf = buf })
   end
 
   if opts.shortcuts.mark_file_for_diff then
     vim.keymap.set('n', opts.shortcuts.mark_file_for_diff, function()
       actions.mark_file_for_diff()
-    end, { noremap = true, silent = true, buffer = buf })
+    end, { noremap = true, silent = true, buf = buf })
   end
 end
 
@@ -587,7 +587,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
   if has_conflicts and opts.shortcuts.open_conflict_commits then
     vim.keymap.set(
       'n', opts.shortcuts.open_conflict_commits, function() open_conflict_commits(tabdata.get_data(), opts) end,
-      { noremap = true, silent = true, buffer = left_buf }
+      { noremap = true, silent = true, buf = left_buf }
     )
   end
 
@@ -596,13 +596,13 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
   if opts.shortcuts.stage_unstage then
     vim.keymap.set('n', opts.shortcuts.stage_unstage, function()
       actions.stage_unstage()
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   if opts.shortcuts.drop_changes then
     vim.keymap.set('n', opts.shortcuts.drop_changes, function()
       actions.drop_changes()
-    end, { noremap = true, silent = true, buffer = left_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 
   return left_buf

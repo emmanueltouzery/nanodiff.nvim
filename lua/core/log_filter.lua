@@ -51,7 +51,7 @@ function M.open_filtering_modal(options, refresh_bottom_buf)
         end
         refresh_modal(tab_data, bufnr, options)
       end)
-    end, { noremap = true, silent = true, buffer = bufnr })
+    end, { noremap = true, silent = true, buf = bufnr })
   end
 
   local width = vim.api.nvim_get_option("columns")

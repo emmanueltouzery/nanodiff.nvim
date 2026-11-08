@@ -231,7 +231,7 @@ function M.add_fwd_bwd_scroll(ft, ft_st, window_list, opts)
       vim.api.nvim_win_call(w, function()
         vim.cmd("normal! " .. vim.keycode("<C-b>"))
       end)
-    end, { noremap = true, silent = true, buffer = panel_buf })
+    end, { noremap = true, silent = true, buf = panel_buf })
   end
 
   if opts.shortcuts.scroll_forward then
@@ -241,7 +241,7 @@ function M.add_fwd_bwd_scroll(ft, ft_st, window_list, opts)
       vim.api.nvim_win_call(w, function()
         vim.cmd("normal! " .. vim.keycode("<C-f>"))
       end)
-    end, { noremap = true, silent = true, buffer = panel_buf })
+    end, { noremap = true, silent = true, buf = panel_buf })
   end
 
   if opts.shortcuts.jump_to_first then
@@ -253,7 +253,7 @@ function M.add_fwd_bwd_scroll(ft, ft_st, window_list, opts)
           return
         end
       end
-    end, { noremap = true, silent = true, buffer = panel_buf })
+    end, { noremap = true, silent = true, buf = panel_buf })
   end
 end
 
