@@ -473,6 +473,8 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
   local left_win = vim.api.nvim_get_current_win()
   tab_data.left_win = left_win
 
+  tabcommon.register_files_shortcuts(opts)
+
   tab_data.ft = filetree.create_ft({
     section_get_key = function(s) return s.title end,
     section_get_items = function(s) return s.contents end,

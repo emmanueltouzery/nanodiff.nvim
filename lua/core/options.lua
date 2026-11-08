@@ -10,6 +10,7 @@ function M.get_common_options()
       scroll_forward = "<C-f>",
       prev_file = "<S-TAB>",
       next_file = "<TAB>",
+      focus_panel = "<leader>p",
     }
   }
 end

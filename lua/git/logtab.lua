@@ -68,6 +68,8 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
   tab_data.title = title
   tab_data.subtitle = subtitle
 
+  tabcommon.register_files_shortcuts(opts)
+
   -- nicer looks for commit messages that'll be too long
   vim.api.nvim_set_option_value("wrap", false, { win = 0 })
   vim.api.nvim_set_option_value("list", true, { win = 0 })

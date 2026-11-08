@@ -9,6 +9,26 @@ local M = {}
 
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
 
+function M.register_files_shortcuts(opts)
+  if opts.shortcuts.focus_panel ~= nil then
+    local function tab_enter()
+      tabdata.get_data().previous_focus_panel_shortcut = vim.fn.maparg(opts.shortcuts.focus_panel, "n", false, true)
+      vim.keymap.set("n", opts.shortcuts.focus_panel, function()
+        vim.api.nvim_set_current_win(tabdata.get_data().left_win)
+      end)
+    end
+    local function tab_leave()
+      local prev = tabdata.get_data().previous_focus_panel_shortcut
+      if not vim.tbl_isempty(prev) then
+        vim.fn.mapset(prev)
+      else
+        vim.keymap.del("n", opts.shortcuts.focus_panel)
+      end
+    end
+    tabdata.add_tab_enter_leave(tab_enter, tab_leave)
+  end
+end
+
 local function win_load_sha_file(winnr, git_root, path, sha, winbar, on_loaded)
   local bufname = string.format("nanodiff://%s/%s", sha, path)
   local bufnr = vim.fn.bufnr(bufname)
