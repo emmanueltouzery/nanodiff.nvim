@@ -560,7 +560,14 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     tabcommon.refresh_from_iterator(
       iterator_section.iterator,
       function() -- on_done
-        local required_height = #tab_data.log * 2 + 2
+        -- tabcommon.render_commit_section will return 2 rows
+        -- unless there's ref_names, then it'll be 3 rows
+        local logs_with_refs = vim.tbl_filter(
+          function(commit) return commit.ref_names ~= nil and #commit.ref_names > 0 end,
+          tab_data.log
+        )
+        -- final +2 for the header including the number of commits
+        local required_height = (#tab_data.log - #logs_with_refs) * 2 + #logs_with_refs * 3 + 2
         if required_height < iterator_height then
           -- shrink the pane in height if possible
           vim.api.nvim_win_set_height(tab_data.left_bottom_win, required_height)

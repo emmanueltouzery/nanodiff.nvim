@@ -351,24 +351,30 @@ function M.render_commit_section(section, has_selection, icon, opts)
   if #section.parents > 1 then
     default_icon = " "
   end
-  local tag_name = section.ref_names and section.ref_names:match("tag:%s*([^,%s]+)")
-  local head_for = section.ref_names and section.ref_names:match("([^%s/]+)/HEAD")
-  if tag_name ~= nil and head_for ~= nil then
-    default_icon = "󰓹 " .. tag_name .. "󰉳 " .. head_for .. " "
-  elseif tag_name ~= nil then
-    default_icon = "󰓹 " .. tag_name .. " "
-  elseif head_for ~= nil then
-    default_icon = "󰉳 " .. head_for .. " "
+  local ref_names = nil
+  if section.ref_names ~= nil and #section.ref_names > 0 then
+    ref_names = section.ref_names
+      :gsub("tag: ", "󰓹 ")
+      :gsub("HEAD %-> ", "󰉳 ")
+    if ref_names == section.ref_names then
+      -- none of the patterns matched, prepend a "ref" icon
+      ref_names = " " .. ref_names
+    end
+    ref_names = ref_names
+      :gsub("HEAD", " ")
   end
-  return {{
+  -- required_height in difftab depends on the number of rows returned here
+  return vim.tbl_filter(function(kv) return kv[1][1] ~= nil end, {{
     { icon or default_icon, "DiffviewFilePanelCounter" },
     { title .. " ", title_hl },
+  }, {
+    { ref_names, "DiffviewHash" },
   }, {
     { "¦ ", "DiffviewHash"},
     { author_name, "DiffviewReference"},
     { " " .. section.date, "DiffviewDim1"},
     {ref, "DiffviewReflogSelector+right_align"},
-  }}
+  }})
 end
 
 return M
