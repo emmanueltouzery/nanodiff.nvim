@@ -78,8 +78,11 @@ end
 --check if a file is binary using only git, lifted and modified from diffview.nvim
 --@return boolean -- True if the file was binary for the given rev, or it didn't exist.
 local function is_binary(git_root, path, rev)
+  path = vim.fs.joinpath(git_root, path)
   -- use realpath to resolve symlinks, git grep returns error code 1 for symlinks
-  path = vim.fs.relpath(git_root, vim.uv.fs_realpath(vim.fs.joinpath(git_root, path)))
+  -- if realpath return nil, the file doesn't exist, possible if we're looking at another branch
+  path = vim.uv.fs_realpath(path) or path
+  path = vim.fs.relpath(git_root, path)
   -- -I ignore binary files, -e ., match any character (for non-binary files)
   local cmd = { "git", "grep", "-I", "--name-only", "-e", "." }
   if rev == "disk" then
