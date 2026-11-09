@@ -162,65 +162,87 @@ function M.status(opts)
   end)
 end
 
-local function get_diff_revspec(git_root, revspec)
-  local commits_stdout = io_helpers.run_cmd({"git", "rev-parse", "--revs-only", "--no-flags", revspec}, {text = true, cwd = git_root})
-  local right_sha, left_sha = unpack(vim.split(commits_stdout:gsub("%^", ""), "%s+", { trimempty = true }))
-  if left_sha == nil then
-    -- git rev-parse resolved a single sha. that means the revspec contained a single sha,
-    -- we're comparing that sha with the worktree
-    left_sha = right_sha
-    right_sha = "disk"
-    -- update the revspec so that revspec_display_commits_popup works properly
-    revspec = revspec .. "..HEAD"
+--- Resolve a diff revspec into its two endpoints.
+-- Returns left_sha, right_sha ("disk" means the worktree), or nil, nil, err.
+--   A..B  -> rev-parse prints: B, ^A
+--   A...B -> rev-parse prints: B, A, ^merge-base
+--   C^!   -> rev-parse prints: C, ^parent1, ^parent2, ...
+--   C     -> rev-parse prints: C            (compare against the worktree)
+local function resolve_revspec(git_root, revspec)
+  if revspec == "" then
+    revspec = "HEAD"
+  end
+  local stdout = io_helpers.run_cmd(
+    {"git", "rev-parse", "--revs-only", "--no-flags", revspec},
+    {text = true, cwd = git_root})
+
+  local positives, negatives = {}, {}
+  for _, tok in ipairs(vim.split(stdout or "", "%s+", { trimempty = true })) do
+    if tok:sub(1, 1) == "^" then
+      table.insert(negatives, tok:sub(2))
+    else
+      table.insert(positives, tok)
+    end
   end
 
-  -- need to fetch the per-file diffstats separately
-  local diff_numstat = parse_diff_numstat(io_helpers.run_cmd({
-    "git", "-c", "core.quotepath=false", "diff", "--numstat", "-z", revspec
-  }))
+  if #positives == 0 then
+    return nil, nil, "Could not resolve revspec: " .. revspec
+  end
+  if #negatives == 0 then
+    return positives[1], "disk"
+  end
+  return negatives[1], positives[1]
+end
 
-  local output = vim.trim(io_helpers.run_cmd({
-    "git", "-c", "core.quotepath=false", "diff", "--name-status", "-M", revspec
-  }, {text = true, cwd = git_root}))
+--- The commits that make up the diff, as a git log range.
+-- With --first-parent this also does the right thing for C^! on merge commits.
+local function log_range(left_sha, right_sha)
+  return left_sha .. ".." .. (right_sha == "disk" and "HEAD" or right_sha)
+end
 
+--- Parse `git diff --name-status -z` output (robust against tabs/newlines/quoting in paths).
+local function parse_name_status_z(output)
+  local tokens = vim.split(output or "", "\0", { plain = true, trimempty = true })
+  local entries = {}
+  local i = 1
+  while i <= #tokens do
+    local status = tokens[i]:sub(1, 1)
+    if status == "R" or status == "C" then
+      table.insert(entries, { status = status, orig_path = tokens[i + 1], path = tokens[i + 2] })
+      i = i + 3
+    else
+      table.insert(entries, { status = status, path = tokens[i + 1] })
+      i = i + 2
+    end
+  end
+  return entries
+end
+
+local function build_contents(git_root, left_sha, right_sha)
+  local range = right_sha == "disk" and { left_sha } or { left_sha, right_sha }
+
+  local function git_diff(flags)
+    local cmd = {"git", "-c", "core.quotepath=false", "diff", "-M"}
+    vim.list_extend(cmd, flags)
+    vim.list_extend(cmd, range)
+    table.insert(cmd, "--")
+    return io_helpers.run_cmd(cmd, {cwd = git_root})
+  end
+
+  local numstat = parse_diff_numstat(git_diff({"--numstat", "-z"}))
   local results = {}
-
-  for line in output:gmatch("[^\r\n]+") do
-    -- Split line by tab characters
-    local parts = {}
-    for part in line:gmatch("[^\t]+") do
-      table.insert(parts, part)
-    end
-
-    if #parts >= 2 then
-      local raw_code = parts[1]
-      local code_char = raw_code:sub(1, 1)
-      local path = parts[2]
-      local orig_path = nil
-      local status
-
-      if code_char == "R" then
-        -- renamed
-        orig_path = parts[2]
-        path = parts[3]
-      elseif code_char == "C" then
-        -- copied
-        orig_path = parts[2]
-        path = parts[3]
-      end
-
-      local numstat = diff_numstat[path]
-      table.insert(results, {
-        path = path,
-        orig_path = orig_path,
-        status = code_char,
-        added = numstat.added or 0,
-        deleted = numstat.deleted or 0,
-      })
-    end
+  for _, e in ipairs(parse_name_status_z(git_diff({"--name-status", "-z"}))) do
+    local ns = numstat[e.path] or {}
+    table.insert(results, {
+      path = e.path,
+      orig_path = e.orig_path,
+      status = e.status,
+      added = ns.added or 0,
+      deleted = ns.deleted or 0,
+    })
   end
 
-  return revspec, {{
+  return {{
     title = "Changes",
     left_sha = left_sha,
     right_sha = right_sha,
@@ -228,66 +250,43 @@ local function get_diff_revspec(git_root, revspec)
   }}
 end
 
---- Converts a git diff revspec into an equivalent git log commit range string.
--- @param revspec string The input revspec (e.g., "master", "master...", "A..B", "A...B")
--- @return string The converted range suitable for git log (e.g., "merge_base..B")
-local function async_diff_to_log_revspec(revspec)
-  if revspec == "" then
-    return "HEAD"
-  end
-  if vim.endswith(revspec, "^!") then
-    -- C^! means the commit C, excluding its parents
-    return revspec
-  end
-
-  -- 1. Check for triple-dot range: "A...B" or "A..."
-  local a_triple, b_triple = revspec:match("^([^.]*)%.%.%.([^.]*)$")
-  if a_triple then
-    local ref_a = a_triple ~= "" and a_triple or "HEAD"
-    local ref_b = b_triple ~= "" and b_triple or "HEAD"
-
-    local merge_base = vim.trim(io_helpers.run_cmd({"git", "merge-base", ref_a, ref_b}, {cwd = git_root}))
-    if merge_base then
-      return string.format("%s..%s", merge_base, ref_b)
-    else
-      -- Fallback if merge-base fails (e.g., unrelated histories)
-      return string.format("%s..%s", ref_a, ref_b)
-    end
-  end
-
-  -- 2. Check for double-dot range: "A..B" or "A.."
-  local a_double, b_double = revspec:match("^([^.]*)%.%.([^.]*)$")
-  if a_double then
-    local ref_a = a_double ~= "" and a_double or "HEAD"
-    local ref_b = b_double ~= "" and b_double or "HEAD"
-    return string.format("%s..%s", ref_a, ref_b)
-  end
-
-  -- 3. Single rev spec: "master" -> compares commit 'master' to current HEAD
-  return string.format("%s..HEAD", revspec)
-end
-
 function M.revspec(revspec, opts)
   io_helpers.async_progress("Loading git revspec", function()
     local git_root = vim.trim(io_helpers.run_cmd({"git", "rev-parse", "--show-toplevel"}, {text = true}))
-    local revspec, contents = get_diff_revspec(git_root, revspec)
-    local log_revspec = async_diff_to_log_revspec(revspec)
+
+    local left_sha, right_sha, err = resolve_revspec(git_root, revspec)
+    if not left_sha then
+      vim.schedule(function()
+        vim.notify(err, vim.log.levels.ERROR, {source = "nanodiff"})
+      end)
+      return
+    end
+
+    local contents = build_contents(git_root, left_sha, right_sha)
+
     vim.schedule(function()
-      if vim.iter(contents):all(function(item) return #item.contents == 0 end) then
-      vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
-    else
+      if #contents[1].contents == 0 then
+        vim.notify("No changes to display", vim.log.levels.INFO, {source = "nanodiff"})
+        return
+      end
+
       local commits_iterator = log.parse_git_log_output({
-        "git", "-P", "-c", "gc.auto=0", "-c", "core.quotePath=false", "log", "--first-parent", "--stat", log_revspec,
-        "--diff-merges=first-parent", "--numstat", "--raw", "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+        "git", "-P", "-c", "gc.auto=0", "-c", "core.quotePath=false", "log", "--first-parent", "--stat",
+        log_range(left_sha, right_sha),
+        "--diff-merges=first-parent", "--numstat", "--raw",
+        "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
       }, {cwd = git_root}, opts)
 
-      local left_buf = difftab.open_diff_tab(
-        contents, { title="Commits", iterator = commits_iterator }, "Revspec", revspec, git_root,
-        function(git_root)
-          local revspec, contents = get_diff_revspec(git_root, revspec)
-          return contents
+      difftab.open_diff_tab(
+        contents, { title = "Commits", iterator = commits_iterator }, "Revspec", revspec, git_root,
+        function(root)
+          -- re-resolve on refresh so moved refs / new worktree changes are picked up
+          local l, r = resolve_revspec(root, revspec)
+          if not l then
+            return contents
+          end
+          return build_contents(root, l, r)
         end, false, opts)
-      end
     end)
   end)
 end
