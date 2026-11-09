@@ -11,6 +11,10 @@ function M.get_common_options()
       prev_file = "<S-TAB>",
       next_file = "<TAB>",
       focus_panel = "<leader>p",
+      focus_first_file = "<leader>1",
+      focus_second_file = "<leader>2",
+      focus_third_file = "<leader>3",
+      focus_fourth_file = "<leader>4",
     }
   }
 end

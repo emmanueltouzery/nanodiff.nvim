@@ -10,22 +10,49 @@ local M = {}
 local FILE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; -- 1Mb
 
 function M.register_files_shortcuts(opts)
-  if opts.shortcuts.focus_panel ~= nil then
-    local function tab_enter()
-      tabdata.get_data().previous_focus_panel_shortcut = vim.fn.maparg(opts.shortcuts.focus_panel, "n", false, true)
-      vim.keymap.set("n", opts.shortcuts.focus_panel, function()
-        vim.api.nvim_set_current_win(tabdata.get_data().left_win)
-      end)
+  local function set_shortcut(shortcut, fn)
+    local prev = vim.fn.maparg(shortcut, "n", false, true)
+    vim.keymap.set("n", shortcut, fn)
+    return prev
+  end
+
+  local function reset_shortcut(prev, shortcut)
+    if prev and not vim.tbl_isempty(prev) then
+      vim.fn.mapset(prev)
+    else
+      pcall(vim.keymap.del, "n", shortcut)
     end
-    local function tab_leave()
-      local prev = tabdata.get_data().previous_focus_panel_shortcut
-      if not vim.tbl_isempty(prev) then
-        vim.fn.mapset(prev)
-      else
-        vim.keymap.del("n", opts.shortcuts.focus_panel)
-      end
+  end
+
+  -- option name -> window field in tabdata
+  local targets = {
+    { "focus_panel",       "left_win" },
+    { "focus_first_file",  "diff1_win" },
+    { "focus_second_file", "diff2_win" },
+    { "focus_third_file",  "diff3_win" },
+    { "focus_fourth_file", "diff4_win" },
+  }
+
+  for _, t in ipairs(targets) do
+    local name, win_field = t[1], t[2]
+    local lhs = opts.shortcuts[name]
+    if lhs ~= nil then
+      tabdata.add_tab_enter_leave(
+        function()
+          local data = tabdata.get_data()
+          data.previous_shortcuts = data.previous_shortcuts or {}
+          data.previous_shortcuts[name] = set_shortcut(lhs, function()
+            local win = tabdata.get_data()[win_field]
+            if win and vim.api.nvim_win_is_valid(win) then
+              vim.api.nvim_set_current_win(win)
+            end
+          end)
+        end,
+        function()
+          local prev = (tabdata.get_data().previous_shortcuts or {})[name]
+          reset_shortcut(prev, lhs)
+        end)
     end
-    tabdata.add_tab_enter_leave(tab_enter, tab_leave)
   end
 end
 
