@@ -37,36 +37,38 @@ local function invoke_tab_leave(leave_tab_id)
   end
 end
 
--- TODO maybe these autocommands would be better registered in a setup() call.
+-- will be called multiple times during normal operation,
+-- should be idempotent
+function M.init()
+  vim.api.nvim_create_autocmd("TabClosedPre", {
+    group = vim.api.nvim_create_augroup("NanodiffStateCleanup", { clear = true }),
+    callback = function(args)
+      local closing_tab_id = vim.api.nvim_get_current_tabpage()
+      for _, cleanup_fn in ipairs((state[closing_tab_id] or {}).__cleanups or {}) do
+        cleanup_fn()
+      end
+      invoke_tab_leave(closing_tab_id)
+      state[closing_tab_id] = nil
+    end,
+  })
 
-vim.api.nvim_create_autocmd("TabClosedPre", {
-  group = vim.api.nvim_create_augroup("NanodiffStateCleanup", { clear = true }),
-  callback = function(args)
-    local closing_tab_id = vim.api.nvim_get_current_tabpage()
-    for _, cleanup_fn in ipairs((state[closing_tab_id] or {}).__cleanups or {}) do
-      cleanup_fn()
-    end
-    invoke_tab_leave(closing_tab_id)
-    state[closing_tab_id] = nil
-  end,
-})
+  vim.api.nvim_create_autocmd("TabEnter", {
+    group = vim.api.nvim_create_augroup("NanodiffTabEntry", { clear = true }),
+    callback = function(args)
+      local entering_tab_id = vim.api.nvim_get_current_tabpage()
+      for _, enter_fn in ipairs((state[entering_tab_id] or {}).__tabenters or {}) do
+        enter_fn()
+      end
+    end,
+  })
 
-vim.api.nvim_create_autocmd("TabEnter", {
-  group = vim.api.nvim_create_augroup("NanodiffTabEntry", { clear = true }),
-  callback = function(args)
-    local entering_tab_id = vim.api.nvim_get_current_tabpage()
-    for _, enter_fn in ipairs((state[entering_tab_id] or {}).__tabenters or {}) do
-      enter_fn()
-    end
-  end,
-})
-
-vim.api.nvim_create_autocmd("TabLeave", {
-  group = vim.api.nvim_create_augroup("NanodiffTabLeave", { clear = true }),
-  callback = function(args)
-    local leave_tab_id = vim.api.nvim_get_current_tabpage()
-    invoke_tab_leave(leave_tab_id)
-  end,
-})
+  vim.api.nvim_create_autocmd("TabLeave", {
+    group = vim.api.nvim_create_augroup("NanodiffTabLeave", { clear = true }),
+    callback = function(args)
+      local leave_tab_id = vim.api.nvim_get_current_tabpage()
+      invoke_tab_leave(leave_tab_id)
+    end,
+  })
+end
 
 return M

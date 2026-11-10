@@ -1,6 +1,7 @@
 local async = vim.async
 local options = require('core.options')
 local git_adapter = require('git.git')
+local tabdata = require('core.tabdata')
 
 local M = {
   lib = {
@@ -40,6 +41,7 @@ end
 
 function M.status(opts)
   opts = options.apply_option_defaults(opts, options.get_status_options())
+  tabdata.init()
   with_vsc(opts, function(adapter, opts)
     adapter.status(opts)
   end)
@@ -47,6 +49,7 @@ end
 
 function M.revspec(revspec, opts)
   opts = options.apply_option_defaults(opts, options.get_revspec_options())
+  tabdata.init()
   with_vsc(opts, function(adapter, opts)
     adapter.revspec(revspec, opts)
   end)
@@ -54,6 +57,7 @@ end
 
 function M.log(opts)
   opts = options.apply_option_defaults(opts, options.get_log_options())
+  tabdata.init()
   with_vsc(opts, function(adapter, opts)
     adapter.log(opts)
   end)
@@ -61,6 +65,7 @@ end
 
 function M.stashes(opts)
   opts = options.apply_option_defaults(opts, options.get_stashes_options())
+  tabdata.init()
   with_vsc(opts, function(adapter, opts)
     adapter.stashes(opts)
   end)
