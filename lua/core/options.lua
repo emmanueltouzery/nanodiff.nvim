@@ -45,7 +45,6 @@ end
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
-      yank_commit = "<C-y>",
     },
     panel_width = function() return 43 end, -- calculated for render_commit_section to fit
   })
@@ -55,6 +54,8 @@ function M.get_revspec_options()
   return vim.tbl_deep_extend("force", M.get_diff_options(), {
     shortcuts = {
       open_log = "L",
+      yank_commit = "<C-y>",
+      open_commit = "<C-enter>",
     },
     diff_log_panel_height_ratio = 0.6,
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,

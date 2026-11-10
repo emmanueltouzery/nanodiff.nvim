@@ -409,6 +409,16 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
       end
     end, { noremap = true, silent = true, buf = left_buf })
   end
+
+  if opts.shortcuts.open_commit then
+    vim.keymap.set('n', opts.shortcuts.open_commit, function()
+      local section, item = filetree.get_cur_section_item(tabdata.get_data().leftpane_log_ft_st)
+      if section then
+        local hash = section.hash
+        require('nanodiff').revspec(hash .. "^.." .. hash)
+      end
+    end, { noremap = true, silent = true, buf = left_buf })
+  end
 end
 
 local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
