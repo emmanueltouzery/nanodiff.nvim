@@ -407,7 +407,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
         vim.fn.setreg("+", hash)
         vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
       end
-    end, { noremap = true, silent = true, buf = bottom_buf })
+    end, { noremap = true, silent = true, buf = left_buf })
   end
 end
 
