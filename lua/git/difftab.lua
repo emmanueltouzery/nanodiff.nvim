@@ -532,6 +532,20 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
       end)
     end)
   end
+  local autocmd_id = vim.api.nvim_create_autocmd("BufWritePost", {
+    pattern = "*",
+    callback = function()
+      -- reload the diff on any file save. we could limit to
+      -- only files currently involved in the diff, but this is
+      -- only while the nanodiff tab is opened, shouldn't be a big deal
+      -- example: file has changes, is displayed in diff, user drops the
+      -- changes -> file should be removed from diff
+      reload_diff(git_root, reload_index)
+    end,
+  })
+  tabdata.add_cleanup(function()
+    vim.api.nvim_del_autocmd(autocmd_id)
+  end)
 
   if iterator_section ~= nil then
     local iterator_height = math.floor((vim.o.lines - vim.o.cmdheight - vim.o.laststatus - vim.o.showtabline) * (1 - opts.diff_log_panel_height_ratio))
