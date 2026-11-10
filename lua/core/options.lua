@@ -65,6 +65,8 @@ function M.get_status_options()
   return vim.tbl_deep_extend("force", M.get_diff_options(), {
     shortcuts = {
       stage_unstage = "s",
+      stage_all = "S",
+      unstage_all = "U",
       drop_changes = "X",
       open_conflict_commits = "L",
       conflict_modal_switch_commit = "<TAB>",

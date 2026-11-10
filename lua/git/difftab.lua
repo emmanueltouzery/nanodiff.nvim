@@ -622,6 +622,22 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     end, { noremap = true, silent = true, buf = left_buf })
   end
 
+  if opts.shortcuts.stage_all then
+    vim.keymap.set('n', opts.shortcuts.stage_all, function()
+      return async.run(function()
+        io_helpers.run_cmd({"git", "add", "-A"}, {cwd = tabdata.get_data().git_root})
+      end):raise_on_error()
+    end, { noremap = true, silent = true, buf = left_buf })
+  end
+
+  if opts.shortcuts.unstage_all then
+    vim.keymap.set('n', opts.shortcuts.unstage_all, function()
+      return async.run(function()
+        io_helpers.run_cmd({"git", "restore", "--staged", "."}, {cwd = tabdata.get_data().git_root})
+      end):raise_on_error()
+    end, { noremap = true, silent = true, buf = left_buf })
+  end
+
   if opts.shortcuts.drop_changes then
     vim.keymap.set('n', opts.shortcuts.drop_changes, function()
       actions.drop_changes()
