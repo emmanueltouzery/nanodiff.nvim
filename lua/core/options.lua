@@ -15,6 +15,7 @@ function M.get_common_options()
       focus_second_file = "<leader>2",
       focus_third_file = "<leader>3",
       focus_fourth_file = "<leader>4",
+      mark_file_for_diff = {"+", "kPlus"},
     }
   }
 end
@@ -44,7 +45,6 @@ end
 function M.get_diff_options()
   return vim.tbl_deep_extend("force", M.get_common_options(), {
     shortcuts = {
-      mark_file_for_diff = "+",
       yank_commit = "<C-y>",
     },
     panel_width = function() return 43 end, -- calculated for render_commit_section to fit
