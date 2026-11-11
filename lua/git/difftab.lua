@@ -357,7 +357,6 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
     render_item = function(prefix, item, is_selected, extra)
       return tabcommon.tree_render_item(
         prefix, item, is_selected, extra, tab_data.conflicts_state,
-        true, -- right_align_diffstat
         extra_icon
       )
     end,
@@ -499,7 +498,6 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
       end
       return tabcommon.tree_render_item(
         prefix, item, is_selected, extra, tab_data.conflicts_state,
-        true, -- right_align_diffstat
         extra_icon
       )
     end,

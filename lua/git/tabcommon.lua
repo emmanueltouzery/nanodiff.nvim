@@ -191,7 +191,7 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar, on_loaded)
   end
 end
 
-function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat, extra_icon)
+function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, extra_icon)
   local path_hl = is_selected and "NanodiffFilePanelSelected" or nil
   local status_hl = nil
   if item.status == "A" or item.status == "?" then
@@ -201,11 +201,7 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
   end
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
   local diffstat_prefix = " "
-  local diffstat_hl_suffix = ""
-  if right_align_diffstat then
-    diffstat_prefix = ""
-    diffstat_hl_suffix = "+right_align"
-  end
+  local diffstat_hl_suffix = "+right_align"
   if item.status == "U" then
     -- git conflict: don't display the +- diffstat, rather the number of conflicts
     line_info = {
