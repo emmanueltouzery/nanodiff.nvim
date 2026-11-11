@@ -28,17 +28,17 @@ end
 
 local function get_header(tabnr)
   local tab_data = tabdata.get_data(tabnr)
-  local first_row = { {"Options: ", "DiffviewFilePanelPath"}, {"g!", "DiffviewFilePanelCounter"} }
+  local first_row = { {"Options: ", "NanodiffFilePanelTitle"}, {"g!", "NanodiffFilePanelCounter"} }
   for k, v in pairs(tab_data.search_settings or {}) do
-    table.insert(first_row, { " " .. v, "DiffviewSecondary" })
+    table.insert(first_row, { " " .. v, "NanodiffSecondary" })
   end
   local title_row = {}
   if type(tab_data.title) == "table" then
     vim.list_extend(title_row, tab_data.title)
   else
-    table.insert(title_row, {tab_data.title .. " ", "DiffviewFilePanelTitle"})
+    table.insert(title_row, {tab_data.title .. " ", "NanodiffItemKey"})
   end
-  table.insert(title_row, {string.format("(%d)", tab_data.log_count), "DiffviewFilePanelCounter"})
+  table.insert(title_row, {string.format("(%d)", tab_data.log_count), "NanodiffFilePanelCounter"})
   local res = {
     first_row,
     {},

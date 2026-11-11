@@ -152,11 +152,11 @@ local function render_tree(ft, ft_st, selected_path, section_expand_st, tree, de
         folder = folder_open
       end
       table.insert(ft_st.lines, {
-        {"│", "DiffviewNonText"},
+        {"│", "NanodiffNonText"},
         {" " .. prefix, nil},
-        {arrow, "DiffviewNonText"},
-        {folder, "DiffviewFolderSign"},
-        {item.path, "DiffviewFolderName"},
+        {arrow, "NanodiffNonText"},
+        {folder, "NanodiffFolderIcon"},
+        {item.path, "NanodiffFolderName"},
       })
       if expand then
         local sl, sp = render_tree(ft, ft_st, selected_path, section_expand_st, item.subs, depth + 1, full_path, expand_selected)

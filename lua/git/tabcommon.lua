@@ -192,12 +192,12 @@ function M.win_load_buf(git_root, winnr, path, sha, winbar, on_loaded)
 end
 
 function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, right_align_diffstat, extra_icon)
-  local path_hl = is_selected and "DiffviewFilePanelSelected" or nil
+  local path_hl = is_selected and "NanodiffFilePanelSelected" or nil
   local status_hl = nil
   if item.status == "A" or item.status == "?" then
-    status_hl = "DiffviewFilePanelInsertions"
+    status_hl = "NanodiffAdd"
   elseif item.status == "D" then
-    status_hl = "DiffviewFilePanelDeletions"
+    status_hl = "NanodiffDelete"
   end
   local icon, icon_hl_group = devicons.get_icon(item.path, extension, { default = true })
   local diffstat_prefix = " "
@@ -209,7 +209,7 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
   if item.status == "U" then
     -- git conflict: don't display the +- diffstat, rather the number of conflicts
     line_info = {
-      {"│", "DiffviewNonText"},
+      {"│", "NanodiffNonText"},
       {string.format("%s  ", prefix), nil},
       {item.status, status_hl},
       {" ", nil},
@@ -218,11 +218,11 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
       {conflicts_state.conflicts[extra.item_full_path] ~= nil
         and " " .. #conflicts_state.conflicts[extra.item_full_path]
         or "",
-      "DiffviewFilePanelConflicts+right_align"},
+      "NanodiffConflicts+right_align"},
     }
   elseif item.orig_path then
     line_info = {
-      {"│", "DiffviewNonText"},
+      {"│", "NanodiffNonText"},
       {string.format("%s  ", prefix), nil},
       {item.status, status_hl},
       {" ", nil},
@@ -232,17 +232,17 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
       {item.path .. diffstat_prefix, path_hl},
     }
     if extra_icon then
-      table.insert(line_info, {extra_icon, "DiffviewFilePanelSelected+right_align"})
+      table.insert(line_info, {extra_icon, "NanodiffFilePanelSelected+right_align"})
     end
     if item.added ~= nil and item.added ~= 0 then
-      table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
+      table.insert(line_info, {"+" .. item.added, "NanodiffAdd" .. diffstat_hl_suffix})
     end
     if item.deleted ~= nil and item.deleted ~= 0 then
-      table.insert(line_info, {"-" .. item.deleted,  "DiffviewFilePanelDeletions" .. diffstat_hl_suffix})
+      table.insert(line_info, {"-" .. item.deleted,  "NanodiffDelete" .. diffstat_hl_suffix})
     end
   else
     line_info = {
-      {"│", "DiffviewNonText"},
+      {"│", "NanodiffNonText"},
       {string.format("%s  ", prefix), nil},
       {item.status, status_hl},
       {" ", nil},
@@ -250,13 +250,13 @@ function M.tree_render_item(prefix, item, is_selected, extra, conflicts_state, r
       {item.path .. diffstat_prefix, path_hl},
     }
     if extra_icon then
-      table.insert(line_info, {extra_icon, "DiffviewFilePanelSelected+right_align"})
+      table.insert(line_info, {extra_icon, "NanodiffFilePanelSelected+right_align"})
     end
     if item.added ~= nil and item.added ~= 0 then
-      table.insert(line_info, {"+" .. item.added, "DiffviewFilePanelInsertions" .. diffstat_hl_suffix})
+      table.insert(line_info, {"+" .. item.added, "NanodiffAdd" .. diffstat_hl_suffix})
     end
     if item.deleted ~= nil and item.deleted ~= 0 then
-      table.insert(line_info, {"-" .. item.deleted,  "DiffviewFilePanelDeletions" .. diffstat_hl_suffix})
+      table.insert(line_info, {"-" .. item.deleted,  "NanodiffDelete" .. diffstat_hl_suffix})
     end
   end
   return line_info
@@ -372,7 +372,7 @@ function M.render_commit_section(section, has_selection, icon, opts)
     author_name = string.sub(author_name, 1, max_length_author - 1) .. "…"
   end
   if has_selection then
-    title_hl = "DiffviewFilePanelTitle" 
+    title_hl = "NanodiffFilePanelTitle" 
   end
   local default_icon = " "
   if #section.parents > 1 then
@@ -392,15 +392,15 @@ function M.render_commit_section(section, has_selection, icon, opts)
   end
   -- required_height in difftab depends on the number of rows returned here
   return vim.tbl_filter(function(kv) return kv[1][1] ~= nil end, {{
-    { icon or default_icon, "DiffviewFilePanelCounter" },
+    { icon or default_icon, "NanodiffCommitLine" },
     { title .. " ", title_hl },
   }, {
-    { ref_names, "DiffviewHash" },
+    { ref_names, "NanodiffRef" },
   }, {
-    { "¦ ", "DiffviewHash"},
-    { author_name, "DiffviewReference"},
-    { " " .. section.date, "DiffviewDim1"},
-    {ref, "DiffviewReflogSelector+right_align"},
+    { "¦ ", "NanodiffCommitLine"},
+    { author_name, "NanodiffRef"},
+    { " " .. section.date, "NanodiffDim"},
+    {ref, "NanodiffHash+right_align"},
   }})
 end
 

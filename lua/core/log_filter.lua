@@ -5,16 +5,16 @@ local M = {}
 
 local function refresh_modal(tab_data, bufnr, options)
   local lines = {
-    { { "Options", "DiffviewFilePanelTitle"}, },
+    { { "Options", "NanodiffFilePanelTitle"}, },
   }
   for _, opt in ipairs(options) do
-    local opt_val = { opt[3], "DiffviewDim1" }
+    local opt_val = { opt[3], "NanodiffDim" }
     local opt_raw = tab_data.search_settings[opt[1]] 
     if opt_raw then
-      opt_val = { opt[3] .. opt_raw, "DiffviewFilePanelCounter" }
+      opt_val = { opt[3] .. opt_raw, "NanodiffFilePanelCounter" }
     end
     table.insert(lines, {
-      { " " .. opt[1] .. " ", "DiffviewSecondary" }, { opt[2], "DiffviewFilePanelFileName" }, { " (", nil }, opt_val, { ")", nil},
+      { " " .. opt[1] .. " ", "NanodiffSecondary" }, { opt[2], "NanodiffFilePanelFileName" }, { " (", nil }, opt_val, { ")", nil},
     })
   end
 

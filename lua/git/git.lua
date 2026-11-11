@@ -300,7 +300,7 @@ function M.log(opts)
   local function log_view_title(git_root)
     local title = "Log view"
     if single_file_path then
-      title = { {title .. " ", "DiffviewFilePanelTitle"}, { vim.fn.fnamemodify(single_file_path, ":t") .. " ", "DiffviewFolderName" } }
+      title = { {title .. " ", "NanodiffFilePanelTitle"}, { vim.fn.fnamemodify(single_file_path, ":t") .. " ", "NanodiffFolderName" } }
     end
     return title
   end
@@ -333,8 +333,8 @@ function M.log(opts)
       logtab.open_log_tab(
         log_view_title(git_root, branch),
         {
-          {"Branch: ", "DiffviewFolderName"},
-          {branch, "DiffviewFilePanelPath"}
+          {"Branch: ", "NanodiffFolderName"},
+          {branch, "NanodiffItemKey"}
         },
         get_iterator_fn, git_root, opts)
     end)

@@ -14,7 +14,7 @@ local logtab = require('git.logtab')
 local M = {}
 
 local function format_section_header(section, has_selection)
-  return {{{ " " .. section.title .. " ", "DiffviewFilePanelTitle" }, {string.format("(%d)", #(section.contents)), "DiffviewFilePanelCounter"}}}
+  return {{{ " " .. section.title .. " ", "NanodiffFilePanelTitle" }, {string.format("(%d)", #(section.contents)), "NanodiffFilePanelCounter"}}}
 end
 
 local function jump_match(matches, dir)
@@ -254,7 +254,7 @@ local function open_side_by_side_popup(side1, side2, title, opts)
 
     local title_bufnr = git_text_to_buffer(string.rep(" ", width/2 - (#title/2)) .. title)
     local ns_id = vim.api.nvim_create_namespace("nanodiff_ui_highlights")
-    vim.api.nvim_buf_add_highlight(title_bufnr, ns_id, "DiffviewFilePanelTitle", 0, 0, -1)
+    vim.api.nvim_buf_add_highlight(title_bufnr, ns_id, "NanodiffFilePanelTitle", 0, 0, -1)
 
     local win_left = vim.api.nvim_open_win(side1.buf, true, opts_left)
     vim.wo[win_left].winbar = "%= " .. side1.title .. " %="
@@ -351,7 +351,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
     section_get_key = function(s) return s.hash end,
     section_get_items = function(s) return s.files end,
     get_header = function() return {
-      { {"Commits: ", "DiffviewFilePanelPath"}, {#tab_data.log, "DiffviewFilePanelCounter"} },
+      { {"Commits: ", "NanodiffItemKey"}, {#tab_data.log, "NanodiffFilePanelCounter"} },
       {},
     } end,
     render_item = function(prefix, item, is_selected, extra)
@@ -489,7 +489,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     section_get_key = function(s) return s.title end,
     section_get_items = function(s) return s.contents end,
     get_header = function() return {
-      { {desc_key .. ": ", "DiffviewFilePanelPath"}, {desc_val, "DiffviewFilePanelCounter"} },
+      { {desc_key .. ": ", "NanodiffFilePanelTitle"}, {desc_val, "NanodiffFilePanelCounter"} },
       {},
     } end,
     render_item = function(prefix, item, is_selected, extra)
