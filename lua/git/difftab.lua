@@ -489,6 +489,8 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
   local left_win = vim.api.nvim_get_current_win()
   tab_data.left_win = left_win
 
+  vim.api.nvim_set_option_value("listchars", "extends:…", { win = 0 })
+
   tabcommon.register_files_shortcuts(opts)
 
   tab_data.ft = filetree.create_ft({
