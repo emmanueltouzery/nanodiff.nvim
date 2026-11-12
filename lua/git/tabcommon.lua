@@ -26,7 +26,6 @@ function M.register_files_shortcuts(opts)
 
   -- option name -> window field in tabdata
   local targets = {
-    { "focus_panel",       "left_win" },
     { "focus_first_file",  "diff1_win" },
     { "focus_second_file", "diff2_win" },
     { "focus_third_file",  "diff3_win" },
@@ -54,6 +53,30 @@ function M.register_files_shortcuts(opts)
         end)
     end
   end
+
+  -- special handling for focus_panel which may focus the commits sub-panel in revspec mode
+  if opts.shortcuts.focus_panel ~= nil then
+    local lhs = opts.shortcuts.focus_panel 
+    tabdata.add_tab_enter_leave(
+      function()
+        local data = tabdata.get_data()
+        data.previous_shortcuts = data.previous_shortcuts or {}
+        data.previous_shortcuts.focus_panel = set_shortcut(lhs, function()
+          local win = tabdata.get_data().left_win
+          local selection_grid = tabdata.get_data().selection_grid 
+          if selection_grid ~= nil and selection_grid == "commits" then
+            win = tabdata.get_data().left_bottom_win
+          end
+          if win and vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_set_current_win(win)
+          end
+        end)
+      end,
+      function()
+        local prev = (tabdata.get_data().previous_shortcuts or {}).focus_panel
+        reset_shortcut(prev, lhs)
+      end)
+    end
 end
 
 local function win_load_sha_file(winnr, git_root, path, sha, winbar, on_loaded)
