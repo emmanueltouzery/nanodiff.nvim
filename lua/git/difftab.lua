@@ -356,7 +356,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
     } end,
     render_item = function(prefix, item, is_selected, extra)
       return tabcommon.tree_render_item(
-        prefix, item, is_selected, extra, tab_data.conflicts_state,
+        prefix, item, is_selected and tab_data.selection_grid == "commits", extra, tab_data.conflicts_state,
         extra_icon
       )
     end,
@@ -364,6 +364,11 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
       return tabcommon.render_commit_section(section, has_selection, nil, opts)
     end,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
+      if tab_data.selection_grid ~= "commits" then
+        tab_data.selection_grid = "commits"
+        tab_data.refresh_grid()
+      end
+      tab_data.refresh_grid = function() filetree.redisplay(ft, ft_st, false) end
       logtab.load_entry(
         tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, left_bottom_buf,
         tab_data.git_root, section or {}, item,
@@ -473,6 +478,8 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
 
   local left_buf = vim.api.nvim_win_get_buf(0)
   local tab_data = tabdata.get_data()
+
+  tab_data.selection_grid = "files"
   tab_data.diff_sections = diff_sections
   tab_data.reload_diff = function(git_root) -- API, can be used by external callers and actions
     reload_diff(git_root, reload_index)
@@ -497,12 +504,17 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
         extra_icon = " "
       end
       return tabcommon.tree_render_item(
-        prefix, item, is_selected, extra, tab_data.conflicts_state,
+        prefix, item, is_selected and tab_data.selection_grid == "files", extra, tab_data.conflicts_state,
         extra_icon
       )
     end,
     render_section = format_section_header,
     item_activated = function(ft, ft_st, section, item, skip_refresh_left_buf)
+      if tab_data.selection_grid ~= "files" then
+        tab_data.selection_grid = "files"
+        tab_data.refresh_grid()
+      end
+      tab_data.refresh_grid = function() filetree.redisplay(ft, ft_st, false) end
       load_entry(
         ft, ft_st, git_root, section or {}, item or {left_sha = "nil", right_sha = "nil"}, 
         skip_refresh_left_buf, opts
@@ -523,6 +535,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     winnr = left_win,
     selected_item = selected_item,
   })
+  tab_data.refresh_grid = function() filetree.redisplay(ft, ft_st, false) end
 
   local has_conflicts = false
   if diff_sections[1].title == "Conflicts" then
