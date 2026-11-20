@@ -350,10 +350,10 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
   tab_data.leftpane_log_ft = filetree.create_ft({
     section_get_key = function(s) return s.hash end,
     section_get_items = function(s) return s.files end,
-    get_header = function() return {
-      { {"Commits: ", "NanodiffItemKey"}, {#tab_data.log, "NanodiffFilePanelCounter"} },
-      {},
-    } end,
+    get_header = function()
+      vim.wo[tab_data.left_bottom_win].winbar = (#tab_data.log) .. " commits" -- hack. we know this gets called on every redisplay
+      return {}
+    end,
     render_item = function(prefix, item, is_selected, extra)
       return tabcommon.tree_render_item(
         prefix, item, is_selected and tab_data.selection_grid == "commits", extra, tab_data.conflicts_state,
@@ -385,6 +385,8 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
     winnr = left_bottom_win,
     selected_item = selected_item,
   })
+
+  vim.bo[left_bottom_buf].filetype = "NanodiffRevspecLogPanel"
 
   -- nicer looks for commit messages that'll be too long
   vim.api.nvim_set_option_value("wrap", false, { win = left_bottom_win })
@@ -586,7 +588,6 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
 
     vim.api.nvim_set_current_win(tab_data.left_win)
 
-    -- vim.wo[tab_data.left_bottom_win].winbar = "Commits"
     prepare_leftpane_log_filetree(tab_data, tab_data.left_bottom_win, tab_data.left_bottom_buf, opts)
 
     difflayout.diff_tab_layout_init(left_buf, opts)
@@ -603,8 +604,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
           function(commit) return commit.ref_names ~= nil and #commit.ref_names > 0 end,
           tab_data.log
         )
-        -- final +2 for the header including the number of commits
-        local required_height = (#tab_data.log - #logs_with_refs) * 2 + #logs_with_refs * 3 + 2
+        local required_height = (#tab_data.log - #logs_with_refs) * 2 + #logs_with_refs * 3 + 1 -- +1 because of the winbar title
         if required_height < iterator_height then
           -- shrink the pane in height if possible
           vim.api.nvim_win_set_height(tab_data.left_bottom_win, required_height)
