@@ -53,6 +53,8 @@ a specific keyboard shortcut, but i invoke it from multiple places: in general t
 Typically it would be used to compare a branch with another one, for instance to review a pull request. In that case, the revspec would
 probably be `...branch_to_review`.
 
+You can see options for individual functions in `lua/core/options.lua`
+
 ## API
 
 Besides the main functions, nanodiff also exports a `nanodiff.lib` module. It contains the `filetree`, `tabdata` and `io_helpers` modules.
