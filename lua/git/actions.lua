@@ -48,7 +48,14 @@ local function do_drop_changes(item, do_hash)
       msg = string.format("File restored from index. Undo with :sp %s | %%!git show %s", item.path, hash:sub(1, 11))
     end
 
-    if item.left_sha == "nil" then
+    if item.type == "dir" and item.left_sha == nil then
+      -- untracked folder
+      vim.fs.rm(vim.fs.joinpath(git_root, item.path), { recursive = true, force = true })
+      -- since we didn't touch the index, we must force a reload
+      vim.schedule(function()
+        tabdata.get_data().reload_diff(tabdata.get_data().git_root)
+      end)
+    elseif item.left_sha == "nil" then
       -- untracked file, delete it
       io_helpers.async_fs_unlink(vim.fs.joinpath(git_root, item.path))
       -- since we didn't touch the index, we must force a reload
