@@ -401,7 +401,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
           actions.display_commit_popup(git_root, section.hash)
         end
       end,
-      { noremap = true, silent = true, buf = left_buf }
+      { noremap = true, silent = true, buf = left_bottom_buf }
     )
   end
 
@@ -413,7 +413,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
         vim.fn.setreg("+", hash)
         vim.notify("Copied '" .. hash .. "' to the clipboard", vim.log.levels.INFO, {source = "nanodiff"})
       end
-    end, { noremap = true, silent = true, buf = left_buf })
+    end, { noremap = true, silent = true, buf = left_bottom_buf })
   end
 
   if opts.shortcuts.open_commit then
@@ -423,7 +423,7 @@ local function prepare_leftpane_log_filetree(tab_data, left_bottom_win, left_bot
         local hash = section.hash
         require('nanodiff').revspec(hash .. "^.." .. hash)
       end
-    end, { noremap = true, silent = true, buf = left_buf })
+    end, { noremap = true, silent = true, buf = left_bottom_buf })
   end
 end
 
@@ -462,7 +462,7 @@ local function add_standard_filetree_shortcuts(tab_data, buf, ft, ft_st, opts)
   end
 end
 
-function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, git_root, reload_index, watch_index, opts)
+function M.open_diff_tab(diff_sections, commits_iterator_section, desc_key, desc_val, git_root, reload_index, watch_index, opts)
   local filename = vim.fs.relpath(git_root, opts.selected_file or vim.api.nvim_buf_get_name(0))
   local selected_item = nil
   for _, section in ipairs(diff_sections) do
@@ -572,7 +572,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
     vim.api.nvim_del_autocmd(autocmd_id)
   end)
 
-  if iterator_section ~= nil then
+  if commits_iterator_section ~= nil then
     local iterator_height = math.floor((vim.o.lines - vim.o.cmdheight - vim.o.laststatus - vim.o.showtabline) * (1 - opts.diff_log_panel_height_ratio))
     tab_data.left_bottom_win = vim.api.nvim_open_win(0, true, {
       split = "below",
@@ -596,7 +596,7 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
       tab_data, tab_data.left_bottom_buf, tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, opts)
 
     tabcommon.refresh_from_iterator(
-      iterator_section.iterator,
+      commits_iterator_section.iterator,
       function() -- on_done
         -- tabcommon.render_commit_section will return 2 rows
         -- unless there's ref_names, then it'll be 3 rows
@@ -638,6 +638,15 @@ function M.open_diff_tab(diff_sections, iterator_section, desc_key, desc_val, gi
   end
 
   add_standard_filetree_shortcuts(tab_data, left_buf, tab_data.ft, tab_data.ft_st, opts)
+
+  if opts.shortcuts.open_log then
+    vim.keymap.set(
+      'n', opts.shortcuts.open_log, function()
+        actions.revspec_display_commits_popup(git_root, commits_iterator_section.revspec_log_range)
+      end,
+      { noremap = true, silent = true, buf = left_buf }
+    )
+  end
 
   if opts.shortcuts.stage_unstage then
     vim.keymap.set('n', opts.shortcuts.stage_unstage, function()

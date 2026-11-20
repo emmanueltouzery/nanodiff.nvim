@@ -164,41 +164,52 @@ function M.mark_file_for_diff()
   end
 end
 
+local function display_commits_in_popup(git_commits)
+  vim.schedule(function()
+    local git_commits_lines = vim.split(git_commits, "[\r\n]")
+
+    local bufnr = vim.api.nvim_create_buf(false, false)
+    vim.bo[bufnr].filetype = "git"
+    vim.bo[bufnr].bufhidden = "wipe"
+    vim.bo[bufnr].buftype = "nofile"
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
+    vim.bo[bufnr].readonly = true
+    vim.bo[bufnr].modified = false
+    vim.bo[bufnr].modifiable = false
+    local width = vim.api.nvim_get_option("columns")
+    local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
+    local win_height = math.min(#git_commits_lines, 50)
+    if win_height > height then
+      win_height = height
+    end
+
+    local opts = {
+      style = "minimal",
+      border = "rounded",
+      relative = "editor",
+      row = (height - win_height) / 2,
+      col = (width - 100) / 2,
+      width = 100,
+      height = win_height,
+    }
+    local w = vim.api.nvim_open_win(bufnr, true, opts)
+    -- Adds a 1-character left margin inside the buffer area
+    vim.wo[w].foldcolumn = "1"
+    vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
+  end)
+end
+
+function M.revspec_display_commits_popup(git_root, revspec_log_range)
+  io_helpers.async_progress("Loading git revspec log", function()
+    local git_commits = io_helpers.run_cmd({"git", "log", "--first-parent", "--stat", revspec_log_range}, {cwd = git_root})
+    display_commits_in_popup(git_commits)
+  end)
+end
+
 function M.display_commit_popup(git_root, commit)
   async.run("Loading git commit", function()
     local git_commits = io_helpers.run_cmd({"git", "show", "--stat", commit}, {cwd = git_root})
-    vim.schedule(function()
-      local git_commits_lines = vim.split(git_commits, "[\r\n]")
-
-      local bufnr = vim.api.nvim_create_buf(false, false)
-      vim.bo[bufnr].filetype = "git"
-      vim.bo[bufnr].bufhidden = "wipe"
-      vim.bo[bufnr].buftype = "nofile"
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, git_commits_lines)
-      vim.bo[bufnr].readonly = true
-      vim.bo[bufnr].modified = false
-      vim.bo[bufnr].modifiable = false
-      local width = vim.api.nvim_get_option("columns")
-      local height = vim.api.nvim_get_option("lines") - vim.o.cmdheight - 1
-      local win_height = math.min(#git_commits_lines, 50)
-      if win_height > height then
-        win_height = height
-      end
-
-      local opts = {
-        style = "minimal",
-        border = "rounded",
-        relative = "editor",
-        row = (height - win_height) / 2,
-        col = (width - 100) / 2,
-        width = 100,
-        height = win_height,
-      }
-      local w = vim.api.nvim_open_win(bufnr, true, opts)
-      -- Adds a 1-character left margin inside the buffer area
-      vim.wo[w].foldcolumn = "1"
-      vim.keymap.set({'n', 'v'}, 'q', function() vim.api.nvim_win_close(w, false) end, {buf = bufnr})
-    end)
+    display_commits_in_popup(git_commits)
   end):raise_on_error()
 end
 

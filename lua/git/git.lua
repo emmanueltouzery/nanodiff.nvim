@@ -278,7 +278,10 @@ function M.revspec(revspec, opts)
       }, {cwd = git_root}, opts)
 
       difftab.open_diff_tab(
-        contents, { title = "Commits", iterator = commits_iterator }, "Revspec", revspec, git_root,
+        contents, {
+          revspec_log_range = log_range(left_sha, right_sha),
+          iterator = commits_iterator
+        }, "Revspec", revspec, git_root,
         function(root)
           -- re-resolve on refresh so moved refs / new worktree changes are picked up
           local l, r = resolve_revspec(root, revspec)
