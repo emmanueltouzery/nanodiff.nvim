@@ -20,6 +20,9 @@ function M.setup()
     link = "Normal", -- ?
   })
   vim.api.nvim_set_hl(0, "NanodiffRef", {
+    link = "Type",
+  })
+  vim.api.nvim_set_hl(0, "NanodiffName", {
     link = "Constant",
   })
   vim.api.nvim_set_hl(0, "NanodiffCommitLine", {

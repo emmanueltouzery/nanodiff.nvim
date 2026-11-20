@@ -417,7 +417,7 @@ function M.render_commit_section(section, has_selection, icon, opts)
     { ref_names, "NanodiffRef" },
   }, {
     { "¦ ", "NanodiffCommitLine"},
-    { author_name, "NanodiffRef"},
+    { author_name, "NanodiffName"},
     { " " .. section.date, "NanodiffDim"},
     {ref, "NanodiffHash+right_align"},
   }})
