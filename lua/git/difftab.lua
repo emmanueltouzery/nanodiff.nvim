@@ -565,7 +565,17 @@ function M.open_diff_tab(diff_sections, commits_iterator_section, desc_key, desc
       -- only while the nanodiff tab is opened, shouldn't be a big deal
       -- example: file has changes, is displayed in diff, user drops the
       -- changes -> file should be removed from diff
-      reload_diff(git_root, reload_index)
+      async.run(function()
+        local sections = reload_index(git_root, opts)
+        vim.schedule(function()
+          -- a file was saved, assuming this is a local file, let's just reload the
+          -- sidepane with the diffstats. Reloading everything would take the focus
+          -- from this window.
+          filetree.set_contents(tab_data.ft, tab_data.ft_st, sections, {
+            focus_selected = false,
+          })
+        end)
+      end):raise_on_error()
     end,
   })
   tabdata.add_cleanup(function()
