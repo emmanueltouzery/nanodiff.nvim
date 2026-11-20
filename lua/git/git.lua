@@ -167,14 +167,17 @@ end
 --   A..B  -> rev-parse prints: B, ^A
 --   A...B -> rev-parse prints: B, A, ^merge-base
 --   C^!   -> rev-parse prints: C, ^parent1, ^parent2, ...
+--   A B   -> rev-parse prints: A, B         (like `git diff A B`)
 --   C     -> rev-parse prints: C            (compare against the worktree)
 local function resolve_revspec(git_root, revspec)
-  if revspec == "" then
-    revspec = "HEAD"
+  local args = vim.split(revspec or "", "%s+", { trimempty = true })
+  if #args == 0 then
+    args = { "HEAD" }
   end
-  local stdout = io_helpers.run_cmd(
-    {"git", "rev-parse", "--revs-only", "--no-flags", revspec},
-    {text = true, cwd = git_root})
+
+  local cmd = { "git", "rev-parse", "--revs-only", "--no-flags" }
+  vim.list_extend(cmd, args)
+  local stdout = io_helpers.run_cmd(cmd, { text = true, cwd = git_root })
 
   local positives, negatives = {}, {}
   for _, tok in ipairs(vim.split(stdout or "", "%s+", { trimempty = true })) do
@@ -188,10 +191,23 @@ local function resolve_revspec(git_root, revspec)
   if #positives == 0 then
     return nil, nil, "Could not resolve revspec: " .. revspec
   end
-  if #negatives == 0 then
+
+  -- A..B, A...B, C^!
+  if #negatives > 0 then
+    return negatives[1], positives[1]
+  end
+
+  -- A B
+  if #positives == 2 then
+    return positives[1], positives[2]
+  end
+
+  -- C
+  if #positives == 1 then
     return positives[1], "disk"
   end
-  return negatives[1], positives[1]
+
+  return nil, nil, "Too many revisions in revspec: " .. revspec
 end
 
 --- The commits that make up the diff, as a git log range.
