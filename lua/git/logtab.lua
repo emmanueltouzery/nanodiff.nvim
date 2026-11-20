@@ -36,7 +36,7 @@ local function get_header(tabnr)
   if type(tab_data.title) == "table" then
     vim.list_extend(title_row, tab_data.title)
   else
-    table.insert(title_row, {tab_data.title .. " ", "NanodiffItemKey"})
+    table.insert(title_row, {tab_data.title .. " ", "NanodiffFilePanelTitle"})
   end
   table.insert(title_row, {string.format("(%d)", tab_data.log_count), "NanodiffFilePanelCounter"})
   local res = {

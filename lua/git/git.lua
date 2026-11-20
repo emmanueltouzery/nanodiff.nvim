@@ -352,8 +352,8 @@ function M.log(opts)
       logtab.open_log_tab(
         log_view_title(git_root, branch),
         {
-          {"Branch: ", "NanodiffFolderName"},
-          {branch, "NanodiffItemKey"}
+          {"Branch: ", "NanodiffItemKey"},
+          {branch, "NanodiffFolderName"}
         },
         get_iterator_fn, git_root, opts)
     end)

@@ -499,7 +499,7 @@ function M.open_diff_tab(diff_sections, commits_iterator_section, desc_key, desc
     section_get_key = function(s) return s.title end,
     section_get_items = function(s) return s.contents end,
     get_header = function() return {
-      { {desc_key .. ": ", "NanodiffFilePanelTitle"}, {desc_val, "NanodiffFilePanelCounter"} },
+      { {desc_key .. ": ", "NanodiffItemKey"}, {desc_val, "NanodiffFolderName"} },
       {},
     } end,
     render_item = function(prefix, item, is_selected, extra)
