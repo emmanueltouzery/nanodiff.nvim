@@ -286,12 +286,16 @@ function M.revspec(revspec, opts)
         return
       end
 
-      local commits_iterator = log.parse_git_log_output({
-        "git", "-P", "-c", "gc.auto=0", "-c", "core.quotePath=false", "log", "--first-parent", "--stat",
-        log_range(left_sha, right_sha),
-        "--diff-merges=first-parent", "--numstat", "--raw",
-        "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
-      }, {cwd = git_root}, opts)
+      local function get_iterator(left_sha, right_sha)
+        return log.parse_git_log_output({
+          "git", "-P", "-c", "gc.auto=0", "-c", "core.quotePath=false", "log", "--first-parent", "--stat",
+          log_range(left_sha, right_sha),
+          "--diff-merges=first-parent", "--numstat", "--raw",
+          "--pretty=format:%x1e%h%x1f%p%x1f%an%x1f%at%x1f%ai%x1f%ar%x1f%D%x1f%gd%x1f%s",
+        }, {cwd = git_root}, opts)
+      end
+
+      local commits_iterator = get_iterator(left_sha, right_sha)
 
       difftab.open_diff_tab(
         contents, {
@@ -304,7 +308,8 @@ function M.revspec(revspec, opts)
           if not l then
             return contents
           end
-          return build_contents(root, l, r)
+          local left_sha, right_sha, err = resolve_revspec(git_root, revspec)
+          return build_contents(root, l, r), get_iterator(left_sha, right_sha)
         end, false, opts)
     end)
   end)

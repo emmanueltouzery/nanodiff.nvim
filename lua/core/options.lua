@@ -56,6 +56,7 @@ function M.get_revspec_options()
       open_log = "L",
       yank_commit = "<C-S-y>",
       open_commit = "<C-enter>",
+      refresh = "<C-r>",
     },
     diff_log_panel_height_ratio = 0.6,
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,

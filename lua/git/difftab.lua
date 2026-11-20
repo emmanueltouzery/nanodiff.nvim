@@ -313,11 +313,38 @@ local function open_conflict_commits(tab_data, opts)
   end):raise_on_error()
 end
 
+local function refresh_commits_from_iterator(iterator, iterator_height)
+  local tab_data = tabdata.get_data()
+  tabcommon.refresh_from_iterator(
+    iterator,
+    function() -- on_done
+      -- tabcommon.render_commit_section will return 2 rows
+      -- unless there's ref_names, then it'll be 3 rows
+      local logs_with_refs = vim.tbl_filter(
+        function(commit) return commit.ref_names ~= nil and #commit.ref_names > 0 end,
+        tab_data.log
+      )
+      local required_height = (#tab_data.log - #logs_with_refs) * 2 + #logs_with_refs * 3 + 1 -- +1 because of the winbar title
+      if required_height < iterator_height then
+        -- shrink the pane in height if possible
+        vim.api.nvim_win_set_height(tab_data.left_bottom_win, required_height)
+      end
+    end,
+    function(log)
+      tab_data.log = log
+      filetree.set_contents(tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, log, {
+        focus_selected = false,
+        expand_first_section = false,
+      })
+    end
+  )
+end
+
 local function reload_diff(git_root, reload_index)
   local tab_data = tabdata.get_data()
   async.run(function()
     local sel = tab_data.ft_st.selected_item
-    local sections = reload_index(git_root, opts)
+    local sections, commits_iterator = reload_index(git_root, opts)
     vim.schedule(function()
       -- i must clear all stage-related managed buffers, because what's staged/stashed and so on
       -- may have changed
@@ -342,6 +369,10 @@ local function reload_diff(git_root, reload_index)
       end
       filetree.set_contents(tab_data.ft, tab_data.ft_st, sections)
       filetree.handle_enter(tab_data.ft, tab_data.ft_st)
+
+      if commits_iterator ~= nil then
+        refresh_commits_from_iterator(commits_iterator, vim.api.nvim_win_get_height(tab_data.left_bottom_win))
+      end
     end)
   end):raise_on_error()
 end
@@ -605,29 +636,7 @@ function M.open_diff_tab(diff_sections, commits_iterator_section, desc_key, desc
     add_standard_filetree_shortcuts(
       tab_data, tab_data.left_bottom_buf, tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, opts)
 
-    tabcommon.refresh_from_iterator(
-      commits_iterator_section.iterator,
-      function() -- on_done
-        -- tabcommon.render_commit_section will return 2 rows
-        -- unless there's ref_names, then it'll be 3 rows
-        local logs_with_refs = vim.tbl_filter(
-          function(commit) return commit.ref_names ~= nil and #commit.ref_names > 0 end,
-          tab_data.log
-        )
-        local required_height = (#tab_data.log - #logs_with_refs) * 2 + #logs_with_refs * 3 + 1 -- +1 because of the winbar title
-        if required_height < iterator_height then
-          -- shrink the pane in height if possible
-          vim.api.nvim_win_set_height(tab_data.left_bottom_win, required_height)
-        end
-      end,
-      function(log)
-        tab_data.log = log
-        filetree.set_contents(tab_data.leftpane_log_ft, tab_data.leftpane_log_ft_st, log, {
-          focus_selected = false,
-          expand_first_section = false,
-        })
-      end
-    )
+    refresh_commits_from_iterator(commits_iterator_section.iterator, iterator_height)
   else
     difflayout.diff_tab_layout_init(left_buf, opts)
   end
@@ -648,6 +657,15 @@ function M.open_diff_tab(diff_sections, commits_iterator_section, desc_key, desc
   end
 
   add_standard_filetree_shortcuts(tab_data, left_buf, tab_data.ft, tab_data.ft_st, opts)
+
+  if opts.shortcuts.refresh then
+    vim.keymap.set(
+      'n', opts.shortcuts.refresh, function()
+        reload_diff(git_root, reload_index)
+      end,
+      { noremap = true, silent = true, buf = left_buf }
+    )
+  end
 
   if opts.shortcuts.open_log then
     vim.keymap.set(
