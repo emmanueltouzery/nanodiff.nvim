@@ -43,7 +43,7 @@ vim.keymap.set("n", "<leader>gl", function()
   require('nanodiff').log()
 end, {desc="git log"})
 
-vim.keymap.set("n", "<leader>gl", function()
+vim.keymap.set("n", "<leader>gh", function()
   require('nanodiff').stashes()
 end, {desc="git stashes"})
 ```
