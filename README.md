@@ -13,7 +13,7 @@ Nanodiff requires neovim 0.13 (in particular it uses vim.async).
 
 It offers four main functions:
 
-- `status`: visualize untracked, unstaged, stages files, can stage/unstage files
+- `status`: visualize untracked, unstaged, stages files, can stage/unstage files and display conflicts (ours/local/theirs or ours/local/theirs/base plus commits contributing the to the conflicts)
 - `revspec`: can display tree differences based on a git "revspec", for instance `...feature_branch`, or `commit^..commit` to view a single commit. Will display diff+log
 - `log`: view a list of recents commits in the current branch
 - `stashes`: view and restore stashes
