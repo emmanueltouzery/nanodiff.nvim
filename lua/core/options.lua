@@ -26,6 +26,7 @@ function M.get_log_options()
       filters = "g!",
       yank_commit = "<C-S-y>",
       open_log = "L",
+      refresh = "<C-r>",
     },
     relative_date_cutoff_seconds = 3 * 24 * 60 * 60,
     default_max_items = 256,

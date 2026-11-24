@@ -107,6 +107,15 @@ function M.open_log_tab(title, subtitle, get_iterator_fn, git_root, opts)
 
   vim.bo[left_buf].filetype = "NanodiffLogPanel"
 
+  if opts.shortcuts.refresh then
+    vim.keymap.set(
+      'n', opts.shortcuts.refresh, function()
+        tab_data.reload_log()
+      end,
+      { noremap = true, silent = true, buf = left_buf }
+    )
+  end
+
   if opts.shortcuts.activate then
     vim.keymap.set('n', opts.shortcuts.activate, function()
       filetree.handle_enter(tabdata.get_data().ft, tabdata.get_data().ft_st)
